@@ -314,17 +314,18 @@ class KramerInstance extends InstanceBase {
           this.saveConfig(this.config);
         }
         break;
-					 	case this.SWITCH_VIDEO : 
+      case this.SWITCH_VIDEO : {
         let former_input = this.video_routing[output];
         this.video_routing[output] = input;
         let index = this.reverse_video_routing[former_input].indexOf(output);
         if (index > -1) {
-          this.reverse_video_routing[former_input].splice(index, 1);
+          this.reverse_video_routin|g[former_input].splice(index, 1);
         }
         this.reverse_video_routing[input].push(output);
         this.check_variables('routing', 'video', output);
         break;
-					 	case this.SWITCH_AUDIO : 
+      }
+      case this.SWITCH_AUDIO : {
         let former_input = this.audio_routing[output];
         this.audio_routing[output] = input;
         let index = this.reverse_audio_routing[former_input].indexOf(output);
@@ -334,6 +335,7 @@ class KramerInstance extends InstanceBase {
         this.reverse_audio_routing[input].push(output);
         this.check_variables('routing', 'video', output);
         break;
+      }
     }
   }
 
