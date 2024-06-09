@@ -18,6 +18,8 @@ class KramerInstance extends InstanceBase {
   SWITCH_AUDIO = 2;
   STORE_SETUP = 3;
   RECALL_SETUP = 4;
+  REQUEST_VIDEO_STATUS = 5;
+  REQUEST_AUDIO_STATUS = 6;
   FRONT_PANEL = 30;
   DEFINE_MACHINE = 62;
 
@@ -276,6 +278,10 @@ class KramerInstance extends InstanceBase {
     //  significant bit on. If we turn that second bit off, we can compare the
     //  first byte of the response to the first byte of the command sent to see
     //  what the response is for.
+
+    let input = data[1] ^ this.MSB;
+    let output = data[2] ^ this.MSB;
+
     switch (data[0] ^ 64) {
       case this.DEFINE_MACHINE:
         // Turn off the MSB to get the actual count of this capability.
@@ -307,6 +313,26 @@ class KramerInstance extends InstanceBase {
           this.actions();
           this.saveConfig(this.config);
         }
+        break;
+					 	case this.SWITCH_VIDEO : 
+        let former_input = this.video_routing[output];
+        this.video_routing[output] = input;
+        let index = this.reverse_video_routing[former_input].indexOf(output);
+        if (index > -1) {
+          this.reverse_video_routing[former_input].splice(index, 1);
+        }
+        this.reverse_video_routing[input].push(output);
+        this.check_variables('routing', 'video', output);
+        break;
+					 	case this.SWITCH_AUDIO : 
+        let former_input = this.audio_routing[output];
+        this.audio_routing[output] = input;
+        let index = this.reverse_audio_routing[former_input].indexOf(output);
+        if (index > -1) {
+          this.reverse_audio_routing[former_input].splice(index, 1);
+        }
+        this.reverse_audio_routing[input].push(output);
+        this.check_variables('routing', 'video', output);
         break;
     }
   }
