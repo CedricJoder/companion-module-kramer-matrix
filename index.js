@@ -58,7 +58,7 @@ class KramerInstance extends InstanceBase {
     this.config = config;
     this.updateStatus("ok");
     this.actions();
-
+ 
     // TODO: Convert this to the new upgrade infrastructure!
     //
     let configUpgraded = false;
@@ -85,6 +85,7 @@ class KramerInstance extends InstanceBase {
       this.saveConfig(this.config);
     }
 
+    this.init_variables();
     this.init_connection();
   }
 
@@ -130,8 +131,21 @@ class KramerInstance extends InstanceBase {
       });
     }
 
+    // Reinitialise the internal routing matrix
+    for (let i = 0; i<= outputCount; i++) {
+      this.video_routing[i] = 0;
+      this.audio_routing[i] = 0;
+    }
+    for (let i = 0; i<= inputCount; i++) {
+      this.video_reverse_routing[i] = [];
+      this.audio_reverse_routing[i] = [];
+    }
+
+    this.selected_source = this.selected_destination = -1;
+      
     // Rebuild the actions to reflect the capabilities we have.
     this.actions();
+    this.init_variables();
   }
 
   /**
@@ -155,6 +169,7 @@ class KramerInstance extends InstanceBase {
       // Increment the counter to show we're waiting for a response from a capability.
       this.capabilityWaitingResponsesCounter++;
       try {
+        this.log('debug', cmd);
         this.socket.send(cmd);
       } catch (error) {
         this.log("error", `${error}`);
@@ -494,6 +509,72 @@ class KramerInstance extends InstanceBase {
   }
 
   /**
+   * Creates variables.
+   */
+  
+  init_variables() {
+    let variables = [];
+
+    variables.push({ variableId : 'selected_source', name : 'Selected source'});  
+    variables.push({ variableId : 'selected_dest', name : 'Selected destination'});  
+    
+
+    // Set some sane minimum/maximum values on the capabilities
+    let inputCount = Math.min(64, Math.max(1, this.config.inputCount));
+    let outputCount = Math.min(64, Math.max(1, this.config.outputCount));
+    let setupsCount = Math.min(64, Math.max(1, this.config.setupsCount));
+
+    for (let i = 1; i <= outputCount; i++) {
+      variables.push({ variableId : 'Output_'+ i + '_video_source', name : 'Output #' + i + ' video source'});  
+      variables.push({ variableId : 'Output_'+ i + '_audio_source', name : 'Output #' + i + ' audio source'});  
+      //variables.push({ variableId : 'output_' + i + '_Label', name : 'Output #' + i + ' label'});
+    }
+
+    for (let i = 1; i <= inputCount; i++) { 
+      //variables.push({ variableId : 'input_' + i + '_Label', name : 'Intput #' + i + ' label'});
+    }
+
+    this.setVariableDefinitions(variables);
+  }
+
+
+  check_variables(category, type, destination) {
+    let variable_values = {};
+    switch (category) {
+      case 'routing' :
+        if (type == 'video' || type == 'audio') {
+          if (destination > 0) {
+            variable_values['Output_' + destination + '_' + type + '_source'] = this[type + '_routing[' + destination + ']'];
+          }
+          else {
+            output_count = this[type + '_routing'].length();
+            for (i = 1; i < output_count; i++) {
+              variable_values['Output_' + i + '_' + type + '_source'] = this[type + '_routing[' + i + ']'];
+            }
+          }
+        }
+        else {
+          check_variables('routing', 'video', destination);
+          check_variables('routing', 'audio', destination);
+        x
+        }
+        break;
+      case 'selection' :
+        variable_values['selected_source'] = this.selected_source;
+        variable_values['selected_destination'] = this.selected_destination;
+
+        break;
+
+      default : 
+        check_variables('routing');
+        check_variables('selection');
+    }
+
+    this.setVariableValues(variable_values);
+  }
+
+
+  /**
    * Creates the actions for this module.
    */
   actions() {
@@ -526,7 +607,9 @@ class KramerInstance extends InstanceBase {
      * @param machine        String or base 10 for the machine to target
      * @returns              The built command to send
      */
+
     const makeCommand = (instruction, paramA, paramB, machine) => {
+      this.log('debug', 'cmd');
       switch (this.config.protocol) {
         case this.PROTOCOL_2000:
           return Buffer.from([
