@@ -97,9 +97,13 @@ class KramerInstance extends InstanceBase {
    * @param config         The new config object
    */
   async configUpdated(config) {
-	this.log('debug', 'config updated');
     // Reconnect to the matrix if the IP or protocol changed
-    if (this.config.host !== config.host || this.config.port !== config.port || this.config.connectionProtocol !== config.connectionProtocol) { // || this.isConnected() === false) {
+    if (
+      this.config.host !== config.host || 
+      this.config.port !== config.port || 
+      this.config.connectionProtocol !== config.connectionProtocol || 
+      this.isConnected() === false
+    ) {
       // Have to set the new host IP/protocol before making the connection.
 	  this.config.host = config.host;
 	  this.config.port = config.port;
@@ -107,12 +111,11 @@ class KramerInstance extends InstanceBase {
 	  this.log ('debug', 'reconnecting');
 	  this.init_connection();
     }
-	this.log('debug', 'connection unchanged');
-
-	this.log('debug', 'connection done');
+    else {
+      this.log('debug', 'connection unchanged');
+    }
     this.config = config;
 	
-this.log('debug', 'detecting');
     // If any of the values are '0' then attempt to auto-detect:
     let detectCapabilities = [];
     if (this.config.inputCount === 0) {
@@ -128,14 +131,13 @@ this.log('debug', 'detecting');
     if (this.PromiseConnected) {
       this.PromiseConnected.then(() => {
         // Once connected, check the capabilities of the matrix if needed.
-		this.log('debug', 'promise connected');
         this.detectCapabilities(detectCapabilities);
       }).catch((_) => {
         // Error while connecting. The error message is already logged, but Node requires
         //  the rejected promise to be handled.
       });
     }
-this.log('debug', 'init routing');
+
     init_routing();
 
     this.selected_source = this.selected_destination = -1;
@@ -419,7 +421,11 @@ this.log('debug', 'init routing');
   isConnected() {
     switch (this.config.connectionProtocol) {
       case this.CONNECT_TCP:
-        return this.socket.isConnected();
+//this.log ('debug', 'socket : '+ this.socket.isConnected);
+ //       if (typeof this.socket.isConnected == 'undefined') {
+//          return false;
+//        }
+        return this.socket.isConnected;
 
       case this.CONNECT_UDP:
         return true;
