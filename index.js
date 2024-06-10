@@ -97,20 +97,22 @@ class KramerInstance extends InstanceBase {
    * @param config         The new config object
    */
   async configUpdated(config) {
-    this.config = config;
-
+	this.log('debug', 'config updated');
     // Reconnect to the matrix if the IP or protocol changed
-    if (
-      this.config.host !== config.host ||
-      this.isConnected() === false ||
-      this.config.connectionProtocol !== config.connectionProtocol
-    ) {
+    if (this.config.host !== config.host || this.config.port !== config.port || this.config.connectionProtocol !== config.connectionProtocol) { // || this.isConnected() === false) {
       // Have to set the new host IP/protocol before making the connection.
-      this.config.host = config.host;
-      this.config.connectionProtocol = config.connectionProtocol;
-      this.init_connection();
+	  this.config.host = config.host;
+	  this.config.port = config.port;
+	  this.config.connectionProtocol = config.connectionProtocol;
+	  this.log ('debug', 'reconnecting');
+	  this.init_connection();
     }
+	this.log('debug', 'connection unchanged');
 
+	this.log('debug', 'connection done');
+    this.config = config;
+	
+this.log('debug', 'detecting');
     // If any of the values are '0' then attempt to auto-detect:
     let detectCapabilities = [];
     if (this.config.inputCount === 0) {
@@ -126,15 +128,32 @@ class KramerInstance extends InstanceBase {
     if (this.PromiseConnected) {
       this.PromiseConnected.then(() => {
         // Once connected, check the capabilities of the matrix if needed.
+		this.log('debug', 'promise connected');
         this.detectCapabilities(detectCapabilities);
       }).catch((_) => {
         // Error while connecting. The error message is already logged, but Node requires
         //  the rejected promise to be handled.
       });
     }
+this.log('debug', 'init routing');
+    init_routing();
 
-    // Reinitialise the internal routing matrix
-    for (let i = 0; i<= outputCount; i++) {
+    this.selected_source = this.selected_destination = -1;
+      
+    // Rebuild the actions to reflect the capabilities we have.
+    this.actions();
+    this.init_variables();
+  }
+
+  /** 
+   *Initializes the internal routing matrix
+   */
+  init_routing() {
+	let inputCount = Math.min(64, Math.max(1, this.config.inputCount));
+    let outputCount = Math.min(64, Math.max(1, this.config.outputCount));
+    let setupsCount = Math.min(64, Math.max(1, this.config.setupsCount));
+	
+	for (let i = 0; i<= outputCount; i++) {
       this.video_routing[i] = 0;
       this.audio_routing[i] = 0;
     }
@@ -142,12 +161,6 @@ class KramerInstance extends InstanceBase {
       this.video_reverse_routing[i] = [];
       this.audio_reverse_routing[i] = [];
     }
-
-    this.selected_source = this.selected_destination = -1;
-      
-    // Rebuild the actions to reflect the capabilities we have.
-    this.actions();
-    this.init_variables();
   }
 
   /**
@@ -197,13 +210,13 @@ class KramerInstance extends InstanceBase {
     this.PromiseConnected = new Promise((resolve, reject) => {
       switch (this.config.connectionProtocol) {
         case this.CONNECT_TCP:
-          this.socket = new TCPHelper(this.config.host, 5000, {
+          this.socket = new TCPHelper(this.config.host, this.config.port, {
             reconnect_interval: 5000,
           });
           break;
 
         case this.CONNECT_UDP:
-          this.socket = new UDPHelper(this.config.host, 50000);
+          this.socket = new UDPHelper(this.config.host, this.config.port);
           this.updateStatus("ok");
           this.log("debug", "Connected (UDP)");
           break;
@@ -250,12 +263,14 @@ class KramerInstance extends InstanceBase {
 
       switch (this.config.protocol) {
         case this.PROTOCOL_2000:
+		  this.log('debug', 'Received Protocol 2000 data : ' + data);
           this.receivedData2000(data);
           break;
 
         case this.PROTOCOL_3000:
           // data may come in as a multiline response to the request. Handle
           //  each line separately.
+		  this.log('debug', 'Received Protocol 3000 data : ' + data);
           data = data.toString().split("\r\n");
 
           for (var i = 0; i < data.length; i++) {
@@ -457,6 +472,13 @@ class KramerInstance extends InstanceBase {
           { id: this.CONNECT_TCP, label: "TCP (Port 5000)" },
           { id: this.CONNECT_UDP, label: "UDP (Port 50000)" },
         ],
+      },
+	  {
+        type: "number",
+        id: "port",
+        label: "Port number",
+        default: 5000,
+        width: 4,
       },
       {
         type: "static-text",
