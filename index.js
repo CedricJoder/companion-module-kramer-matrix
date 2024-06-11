@@ -87,8 +87,9 @@ class KramerInstance extends InstanceBase {
       this.saveConfig(this.config);
     }
 
-    this.init_variables();
-    this.init_connection();
+//    this.init_variables();
+//    this.init_connection();
+    this.configUpdated(this.config);
   }
 
   /**
@@ -132,30 +133,35 @@ class KramerInstance extends InstanceBase {
       this.PromiseConnected.then(() => {
         // Once connected, check the capabilities of the matrix if needed.
         this.detectCapabilities(detectCapabilities);
+        this.init_routing();
+        this.actions();
+        this.init_variables();
       }).catch((_) => {
         // Error while connecting. The error message is already logged, but Node requires
         //  the rejected promise to be handled.
       });
     }
-
-    init_routing();
+    else {   
+      // Rebuild the actions to reflect the capabilities we have.
+      this.actions();
+      this.init_routing();
+      this.init_variables();
+    }
 
     this.selected_source = this.selected_destination = -1;
-      
-    // Rebuild the actions to reflect the capabilities we have.
-    this.actions();
-    this.init_variables();
   }
+
 
   /** 
    *Initializes the internal routing matrix
    */
   init_routing() {
-	let inputCount = Math.min(64, Math.max(1, this.config.inputCount));
+    let inputCount = Math.min(64, Math.max(1, this.config.inputCount));
     let outputCount = Math.min(64, Math.max(1, this.config.outputCount));
     let setupsCount = Math.min(64, Math.max(1, this.config.setupsCount));
-	
-	for (let i = 0; i<= outputCount; i++) {
+
+    this.video_routing = [];	
+    for (let i = 0; i<= outputCount; i++) {
       this.video_routing[i] = 0;
       this.audio_routing[i] = 0;
     }
@@ -421,11 +427,9 @@ class KramerInstance extends InstanceBase {
   isConnected() {
     switch (this.config.connectionProtocol) {
       case this.CONNECT_TCP:
-//this.log ('debug', 'socket : '+ this.socket.isConnected);
- //       if (typeof this.socket.isConnected == 'undefined') {
-//          return false;
-//        }
-        return this.socket.isConnected;
+        if (typeof this.socket != 'undefined') {
+          return this.socket.isConnected;
+        }
 
       case this.CONNECT_UDP:
         return true;
