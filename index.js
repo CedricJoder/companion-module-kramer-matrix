@@ -52,6 +52,11 @@ class KramerInstance extends InstanceBase {
 
   // The number of capabilities we're waiting responses for before saving the config.
   capabilityWaitingResponsesCounter = 0;
+  
+  video_routing = [];
+  audio_routing = [];
+  video_reverse_routing = [[]];
+  audio_reverse_routing = [[]];
 
   /**
    * Initializes the module and try to detect capabilities.
@@ -129,6 +134,9 @@ class KramerInstance extends InstanceBase {
       detectCapabilities.push(this.CAPS_SETUPS);
     }
 
+//this.detectCapabilities(detectCapabilities);
+	this.log('debug', 'detection : ' + detectCapabilities.length);
+
     if (this.PromiseConnected) {
       this.PromiseConnected.then(() => {
         // Once connected, check the capabilities of the matrix if needed.
@@ -177,6 +185,7 @@ class KramerInstance extends InstanceBase {
    * @param detectCapabilities     An array of capabilities to detect from the matrix
    */
   detectCapabilities(detectCapabilities) {
+	this.log('debug', 'Detecting Capabilities : ' + detectCapabilities.length);
     // Reset the counter
     this.capabilityWaitingResponsesCounter = 0;
 
@@ -212,7 +221,7 @@ class KramerInstance extends InstanceBase {
     if (!this.config.host) {
       return;
     }
-
+	
     this.updateStatus("connecting");
 
     this.PromiseConnected = new Promise((resolve, reject) => {
@@ -500,28 +509,28 @@ class KramerInstance extends InstanceBase {
           "Leave a field blank to auto-detect their values.",
       },
       {
-        type: "textinput",
+        type: "number",
         id: "inputCount",
         label: "Input count",
-        default: "0",
+        default: 0,
         width: 2,
-        regex: "/^\\d*$/",
+//        regex: "/^\\d*$/",
       },
       {
-        type: "textinput",
+        type: "number",
         id: "outputCount",
         label: "Output count",
-        default: "0",
+        default: 0,
         width: 2,
-        regex: "/^\\d*$/",
+ //       regex: "/^\\d*$/",
       },
       {
-        type: "textinput",
+        type: "number",
         id: "setupsCount",
         label: "Preset count",
-        default: "0",
+        default: 0,
         width: 2,
-        regex: "/^\\d*$/",
+ //       regex: "/^\\d*$/",
       },
       {
         type: "static-text",
@@ -573,6 +582,7 @@ class KramerInstance extends InstanceBase {
    */
   
   init_variables() {
+	this.log ('debug', 'Initializing variables');
     let variables = [];
 
     variables.push({ variableId : 'selected_source', name : 'Selected source'});  
@@ -632,6 +642,112 @@ class KramerInstance extends InstanceBase {
 
     this.setVariableValues(variable_values);
   }
+
+    /**
+     * Formats the command as per the Kramer 2000 protocol.
+     *
+     * @param instruction    String or base 10 instruction code for the command
+     * @param paramA         String or base 10 parameter A for the instruction
+     * @param paramB         String or base 10 parameter B for the instruction
+     * @param machine        String or base 10 for the machine to target
+     * @returns              The built command to send
+     */
+
+    makeCommand (instruction, paramA, paramB, machine) {
+      this.log('debug', 'cmd');
+      switch (this.config.protocol) {
+        case this.PROTOCOL_2000:
+          return Buffer.from([
+            parseInt(instruction, 10),
+            this.MSB + parseInt(paramA || 0, 10),
+            this.MSB + parseInt(paramB || 0, 10),
+            this.MSB + parseInt(machine || 1, 10),
+          ]);
+
+        case this.PROTOCOL_3000:
+          switch (instruction) {
+            case this.DEFINE_MACHINE:
+              switch (paramA) {
+                case this.CAPS_VIDEO_INPUTS:
+                case this.CAPS_VIDEO_OUTPUTS:
+                  // Are combined into one instruction in Protocol 3000
+                  return "#INFO-IO?\r";
+
+                case this.CAPS_SETUPS:
+                  return "#INFO-PRST?\r";
+              }
+              break;
+
+            case this.SWITCH_AUDIO:
+              // paramA = inputs
+              // paramB = outputs
+
+              if (paramA === "0") {
+                paramA = getDisconnectParameter();
+              }
+
+              if (paramB === "0") {
+                // '0' means route to all outputs
+                paramB = "*";
+              }
+
+              switch (this.config.customizeRoute) {
+                case this.ROUTE_ROUTE:
+                  return `#ROUTE 1,${paramB},${paramA}\r`;
+
+                default:
+                  this.log(
+                    "info",
+                    "Audio can only be switched using the #ROUTE command."
+                  );
+                  return null;
+              }
+              break;
+
+            case this.SWITCH_VIDEO:
+              // paramA = inputs
+              // paramB = outputs
+
+              if (paramA === "0") {
+                paramA = getDisconnectParameter();
+              }
+
+              if (paramB === "0") {
+                // '0' means route to all outputs
+                paramB = "*";
+              }
+
+              switch (this.config.customizeRoute) {
+                case this.ROUTE_ROUTE:
+                  return `#ROUTE 0,${paramB},${paramA}\r`;
+
+                case this.ROUTE_VID:
+                default:
+                  return `#VID ${paramA}>${paramB}\r`;
+              }
+              break;
+
+            case this.STORE_SETUP:
+              return `#PRST-STO ${paramA}\r`;
+
+            case this.DELETE_SETUP:
+              this.log(
+                "info",
+                "Deleting presets is not supported on Protocol 3000 matrices."
+              );
+              return;
+
+            case this.RECALL_SETUP:
+              return `#PRST-RCL ${paramA}\r`;
+
+            case this.FRONT_PANEL:
+              return `#LOCK-FP ${paramA}\r`;
+          }
+
+          break;
+      }
+    };
+
 
 
   /**
