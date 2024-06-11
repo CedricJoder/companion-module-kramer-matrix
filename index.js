@@ -64,7 +64,7 @@ class KramerInstance extends InstanceBase {
   async init(config) {
     this.config = config;
     this.updateStatus("ok");
-    this.actions();
+//    this.init_actions();
  
     // TODO: Convert this to the new upgrade infrastructure!
     //
@@ -111,11 +111,11 @@ class KramerInstance extends InstanceBase {
       this.isConnected() === false
     ) {
       // Have to set the new host IP/protocol before making the connection.
-	  this.config.host = config.host;
-	  this.config.port = config.port;
-	  this.config.connectionProtocol = config.connectionProtocol;
-	  this.log ('debug', 'reconnecting');
-	  this.init_connection();
+      this.config.host = config.host;
+      this.config.port = config.port;
+      this.config.connectionProtocol = config.connectionProtocol;
+      this.log ('debug', 'reconnecting');
+      this.init_connection();
     }
     else {
       this.log('debug', 'connection unchanged');
@@ -124,34 +124,33 @@ class KramerInstance extends InstanceBase {
 	
     // If any of the values are '0' then attempt to auto-detect:
     let detectCapabilities = [];
-    if (this.config.inputCount === 0) {
+    if (this.config.detectInputs) {
       detectCapabilities.push(this.CAPS_VIDEO_INPUTS);
     }
-    if (this.config.outputCount === 0) {
+    if (this.config.detectOutputs) {
       detectCapabilities.push(this.CAPS_VIDEO_OUTPUTS);
     }
-    if (this.config.setupsCount === 0) {
+    if (this.config.detectSetups) {
       detectCapabilities.push(this.CAPS_SETUPS);
     }
 
-//this.detectCapabilities(detectCapabilities);
-	this.log('debug', 'detection : ' + detectCapabilities.length);
-
-    if (this.PromiseConnected) {
-      this.PromiseConnected.then(() => {
-        // Once connected, check the capabilities of the matrix if needed.
-        this.detectCapabilities(detectCapabilities);
-        this.init_routing();
-        this.actions();
-        this.init_variables();
-      }).catch((_) => {
-        // Error while connecting. The error message is already logged, but Node requires
-        //  the rejected promise to be handled.
-      });
+    if (detectCapabilities != []) {
+      if (this.PromiseConnected) {
+        this.PromiseConnected.then(() => {
+          // Once connected, check the capabilities of the matrix if needed.
+          this.detectCapabilities(detectCapabilities);
+//          this.init_routing();
+//          this.init_actions();
+//          this.init_variables();
+        }).catch((_) => {
+          // Error while connecting. The error message is already logged, but Node requires
+          //  the rejected promise to be handled.
+        });
+      }
     }
     else {   
       // Rebuild the actions to reflect the capabilities we have.
-      this.actions();
+      this.init_actions();
       this.init_routing();
       this.init_variables();
     }
@@ -342,7 +341,9 @@ class KramerInstance extends InstanceBase {
         //  if all the requests responded.
         if (--this.capabilityWaitingResponsesCounter === 0) {
           // Update the actions now that the new capabilities have been stored.
-          this.actions();
+          this.init_actions();
+          this.init_routing();
+          this.init_variables();
           this.saveConfig(this.config);
         }
         break;
@@ -423,7 +424,9 @@ class KramerInstance extends InstanceBase {
     // Save the config if all the requests responded.
     if (this.capabilityWaitingResponsesCounter === 0) {
       // Update the actions now that the new capabilities have been stored.
-      this.actions();
+      this.init_actions();
+      this.init_routing();
+      this.init_variables();
       this.saveConfig(this.config);
     }
   }
@@ -467,7 +470,7 @@ class KramerInstance extends InstanceBase {
         type: "textinput",
         id: "host",
         label: "Target IP",
-        width: 4,
+        width: 3,
         regex: Regex.IP,
       },
       {
@@ -486,18 +489,18 @@ class KramerInstance extends InstanceBase {
         id: "connectionProtocol",
         label: "TCP or UDP",
         default: this.CONNECT_TCP,
-        width: 4,
+        width: 2,
         choices: [
-          { id: this.CONNECT_TCP, label: "TCP (Port 5000)" },
-          { id: this.CONNECT_UDP, label: "UDP (Port 50000)" },
+          { id: this.CONNECT_TCP, label: "TCP" },
+          { id: this.CONNECT_UDP, label: "UDP" },
         ],
       },
-	  {
+      {
         type: "number",
         id: "port",
         label: "Port number",
         default: 5000,
-        width: 4,
+        width: 3,
       },
       {
         type: "static-text",
@@ -505,40 +508,91 @@ class KramerInstance extends InstanceBase {
         width: 12,
         label: "Counts",
         value:
-          "Set the number of inputs, outputs, and presets the matrix supports. " +
-          "Leave a field blank to auto-detect their values.",
+          "Set the number of inputs, outputs, and presets the matrix supports."
+      },
+      
+      {
+        type: "checkbox",
+        id: "detectInputs",
+        label: "Auto detect inputs",
+	width : 2,
+        default: true,
       },
       {
         type: "number",
         id: "inputCount",
         label: "Input count",
+	isVisible : (options) => { return !options.detectInputs;},
         default: 0,
         width: 2,
 //        regex: "/^\\d*$/",
       },
       {
-        type: "number",
-        id: "outputCount",
-        label: "Output count",
-        default: 0,
+        type: "static-text",
+        id: "detectedInputs",
+        isVisible : (options) => { return options.detectInputs;},
         width: 2,
- //       regex: "/^\\d*$/",
+        label: "Input count",
+        value: "0",
+      },
+      
+      {
+        type: "checkbox",
+        id: "detectOutputs",
+        label: "Auto detect outputs",
+	width: 2,
+        default: true,
       },
       {
         type: "number",
-        id: "setupsCount",
-        label: "Preset count",
+        id: "outputCount",
+        label: "Output count",
+        isVisible : (options) => { return !options.detectOutputs;},
         default: 0,
         width: 2,
  //       regex: "/^\\d*$/",
       },
       {
         type: "static-text",
-        id: "info",
+        id: "detectedOutputs",
+        isVisible : (options) => { return options.detectOutputs;},
+        width: 2,
+        label: "Output count",
+        value: "0",
+      },
+      {
+        type: "checkbox",
+        id: "detectSetups",
+        label: "Auto detect setups",
+	width : 2,
+        default: true,
+      },
+
+      {
+        type: "number",
+        id: "setupsCount",
+        isVisible : (options) => { return !options.detectSetups;},
+        label: "Setups count",
+        default: 0,
+        width: 2,
+ //       regex: "/^\\d*$/",
+      },
+      {
+        type: "static-text",
+        id: "detectedSetups",
+        isVisible : (options) => { return options.detectSetups;},
+        width: 2,
+        label: "Setups\ncount",
+        value: "0",
+      },
+      {
+        type: "static-text",
+        id: "info_customize",
         width: 12,
         label: "Customize",
         value:
           "Different matrices may use different commands. Customize them here. Leave default if unsure.",
+        isVisible : (options) => { return (options.protocol == "3000");},
       },
       {
         type: "dropdown",
@@ -550,6 +604,7 @@ class KramerInstance extends InstanceBase {
           { id: this.ROUTE_ROUTE, label: "#ROUTE" },
           { id: this.ROUTE_VID, label: "#VID" },
         ],
+        isVisible : (options) => { return (options.protocol == "3000");},
       },
       {
         type: "dropdown",
@@ -561,6 +616,7 @@ class KramerInstance extends InstanceBase {
           { id: this.DISCONNECT_0, label: "0 (most common)" },
           { id: this.DISCONNECT_INP1, label: "Number of inputs +1" },
         ],
+        isVisible : (options) => { return (options.protocol == "3000");},
       },
     ];
   }
@@ -683,7 +739,7 @@ class KramerInstance extends InstanceBase {
               // paramB = outputs
 
               if (paramA === "0") {
-                paramA = getDisconnectParameter();
+                paramA = this.getDisconnectParameter();
               }
 
               if (paramB === "0") {
@@ -709,7 +765,7 @@ class KramerInstance extends InstanceBase {
               // paramB = outputs
 
               if (paramA === "0") {
-                paramA = getDisconnectParameter();
+                paramA = this.getDisconnectParameter();
               }
 
               if (paramB === "0") {
@@ -750,10 +806,31 @@ class KramerInstance extends InstanceBase {
 
 
 
+    /**
+     * Difference matrices use different command to issue a disconnect.
+     * Return the command appropriate for the user's matrix.
+     *
+     * @returns              The parameter to disconnect the output
+     */
+    getDisconnectParameter() {
+      switch (this.config.customizeDisconnect) {
+        case this.DISCONNECT_INP1:
+          return this.config.inputCount + 1;
+
+        case this.DISCONNECT_0:
+        default:
+          return "0";
+      }
+    };
+
+
+
+
+
   /**
    * Creates the actions for this module.
    */
-  actions() {
+  init_actions() {
     let inputOpts = [{ id: "0", label: "Off" }];
     let outputOpts = [{ id: "0", label: "All" }];
     let setups = [];
@@ -814,7 +891,7 @@ class KramerInstance extends InstanceBase {
               // paramB = outputs
 
               if (paramA === "0") {
-                paramA = getDisconnectParameter();
+                paramA = this.getDisconnectParameter();
               }
 
               if (paramB === "0") {
@@ -840,7 +917,7 @@ class KramerInstance extends InstanceBase {
               // paramB = outputs
 
               if (paramA === "0") {
-                paramA = getDisconnectParameter();
+                paramA = this.getDisconnectParameter();
               }
 
               if (paramB === "0") {
