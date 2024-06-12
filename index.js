@@ -325,16 +325,19 @@ this.log('debug', 'init actions');
           case this.CAPS_VIDEO_INPUTS:
             this.log("info", `Detected: ${count} inputs.`);
             this.config.inputCount = count;
+            this.config.detectedInputs = count.toString();
             break;
 
           case this.CAPS_VIDEO_OUTPUTS:
             this.log("info", `Detected: ${count} outputs.`);
             this.config.outputCount = count;
+            this.config.detectedOutputs = count.toString();
             break;
 
           case this.CAPS_SETUPS:
             this.log("info", `Detected: ${count} presets.`);
             this.config.setupsCount = count;
+            this.config.detectedSetups = count.toString();
             break;
         }
 
@@ -348,18 +351,20 @@ this.log('debug', 'init actions');
           this.saveConfig(this.config);
         }
         break;
-      case this.SWITCH_VIDEO : {
+      case this.SWITCH_VIDEO : 
+      case this.REQUEST_VIDEO_STATUS : {
         let former_input = this.video_routing[output];
         this.video_routing[output] = input;
         let index = this.reverse_video_routing[former_input].indexOf(output);
         if (index > -1) {
-          this.reverse_video_routin|g[former_input].splice(index, 1);
+          this.reverse_video_routing[former_input].splice(index, 1);
         }
         this.reverse_video_routing[input].push(output);
         this.check_variables('routing', 'video', output);
         break;
       }
-      case this.SWITCH_AUDIO : {
+      case this.SWITCH_AUDIO : 
+      case this.REQUEST_AUDIO_STATUS : {
         let former_input = this.audio_routing[output];
         this.audio_routing[output] = input;
         let index = this.reverse_audio_routing[former_input].indexOf(output);
@@ -866,7 +871,7 @@ this.log('debug', Buffer.from([
      * @param machine        String or base 10 for the machine to target
      * @returns              The built command to send
      */
-
+/*
     const makeCommand = (instruction, paramA, paramB, machine) => {
       this.log('debug', 'cmd');
       switch (this.config.protocol) {
@@ -961,13 +966,14 @@ this.log('debug', Buffer.from([
           break;
       }
     };
-
+*/
     /**
      * Difference matrices use different command to issue a disconnect.
      * Return the command appropriate for the user's matrix.
      *
      * @returns              The parameter to disconnect the output
      */
+/*
     const getDisconnectParameter = () => {
       switch (this.config.customizeDisconnect) {
         case this.DISCONNECT_INP1:
@@ -978,7 +984,7 @@ this.log('debug', Buffer.from([
           return "0";
       }
     };
-
+*/
     this.setActionDefinitions({
       switch_audio: {
         name: "Switch Audio",
