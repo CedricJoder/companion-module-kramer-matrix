@@ -134,7 +134,7 @@ class KramerInstance extends InstanceBase {
       detectCapabilities.push(this.CAPS_SETUPS);
     }
 
-    if (detectCapabilities != []) {
+    if (detectCapabilities.length !== 0) {
       if (this.PromiseConnected) {
         this.PromiseConnected.then(() => {
           // Once connected, check the capabilities of the matrix if needed.
@@ -150,6 +150,7 @@ class KramerInstance extends InstanceBase {
     }
     else {   
       // Rebuild the actions to reflect the capabilities we have.
+this.log('debug', 'init actions');
       this.init_actions();
       this.init_routing();
       this.init_variables();
@@ -279,7 +280,7 @@ class KramerInstance extends InstanceBase {
 
       switch (this.config.protocol) {
         case this.PROTOCOL_2000:
-		  this.log('debug', 'Received Protocol 2000 data : ' + data);
+          this.log('debug', 'Received Protocol 2000 data : ' + data);
           this.receivedData2000(data);
           break;
 
@@ -710,9 +711,14 @@ class KramerInstance extends InstanceBase {
      */
 
     makeCommand (instruction, paramA, paramB, machine) {
-      this.log('debug', 'cmd');
       switch (this.config.protocol) {
         case this.PROTOCOL_2000:
+this.log('debug', Buffer.from([
+            parseInt(instruction, 10),
+            this.MSB + parseInt(paramA || 0, 10),
+            this.MSB + parseInt(paramB || 0, 10),
+            this.MSB + parseInt(machine || 1, 10),
+          ]));
           return Buffer.from([
             parseInt(instruction, 10),
             this.MSB + parseInt(paramA || 0, 10),
@@ -993,7 +999,7 @@ class KramerInstance extends InstanceBase {
           },
         ],
         callback: async (event) => {
-          let cmd = makeCommand(
+          let cmd = this.makeCommand(
             this.SWITCH_AUDIO,
             event.options.input,
             event.options.output
@@ -1025,11 +1031,12 @@ class KramerInstance extends InstanceBase {
           },
         ],
         callback: async (event) => {
-          let cmd = makeCommand(
+          let cmd = this.makeCommand(
             this.SWITCH_VIDEO,
             event.options.input,
             event.options.output
           );
+
           try {
             this.socket.send(cmd);
           } catch (error) {
@@ -1062,7 +1069,7 @@ class KramerInstance extends InstanceBase {
           const output = parseInt(
             this.parseVariablesInString(event.options.output)
           );
-          let cmd = makeCommand(this.SWITCH_VIDEO, input, output);
+          let cmd = this.makeCommand(this.SWITCH_VIDEO, input, output);
           try {
             this.socket.send(cmd);
           } catch (error) {
@@ -1097,7 +1104,7 @@ class KramerInstance extends InstanceBase {
           const output = parseInt(
             this.parseVariablesInString(event.options.output)
           );
-          let cmd = makeCommand(this.SWITCH_AUDIO, input, output);
+          let cmd = this.makeCommand(this.SWITCH_AUDIO, input, output);
           try {
             this.socket.send(cmd);
           } catch (error) {
@@ -1117,7 +1124,7 @@ class KramerInstance extends InstanceBase {
           },
         ],
         callback: async (event) => {
-          let cmd = makeCommand(this.RECALL_SETUP, event.options.setup, 0);
+          let cmd = this.makeCommand(this.RECALL_SETUP, event.options.setup, 0);
           try {
             this.socket.send(cmd);
           } catch (error) {
@@ -1137,7 +1144,7 @@ class KramerInstance extends InstanceBase {
           },
         ],
         callback: async (event) => {
-          let cmd = makeCommand(
+          let cmd = this.makeCommand(
             this.STORE_SETUP,
             event.options.setup,
             0 /* STORE */
@@ -1163,7 +1170,7 @@ class KramerInstance extends InstanceBase {
 
         callback: async (event) => {
           // Not a bug. The command to delete a setup is to store it.
-          let cmd = makeCommand(
+          let cmd = this.makeCommand(
             this.STORE_SETUP,
             event.options.setup,
             1 /* DELETE */
@@ -1190,7 +1197,7 @@ class KramerInstance extends InstanceBase {
           },
         ],
         callback: async (event) => {
-          let cmd = makeCommand(this.FRONT_PANEL, event.options.status, 0);
+          let cmd = this.makeCommand(this.FRONT_PANEL, event.options.status, 0);
           try {
             this.socket.send(cmd);
           } catch (error) {
