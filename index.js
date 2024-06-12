@@ -49,19 +49,22 @@ class KramerInstance extends InstanceBase {
 
   // A promise that's resolved when the socket connects to the matrix.
   PromiseConnected = null;
+  // A promise that's resolved when sending a message and waiting for response.
+  PromiseMessage = null;
 
   // The number of capabilities we're waiting responses for before saving the config.
   capabilityWaitingResponsesCounter = 0;
   
   video_routing = [];
   audio_routing = [];
-  video_reverse_routing = [[]];
-  audio_reverse_routing = [[]];
+  reverse_video_routing = [[]];
+  reverse_audio_routing = [[]];
 
   /**
    * Initializes the module and try to detect capabilities.
    */
   async init(config) {
+	  this.log('debug', 'init');
     this.config = config;
     this.updateStatus("ok");
 //    this.init_actions();
@@ -94,7 +97,7 @@ class KramerInstance extends InstanceBase {
 
 //    this.init_variables();
 //    this.init_connection();
-    this.configUpdated(this.config);
+    await this.configUpdated(this.config);
   }
 
   /**
@@ -103,6 +106,7 @@ class KramerInstance extends InstanceBase {
    * @param config         The new config object
    */
   async configUpdated(config) {
+	  this.log('debug', 'configUpdated()');
     // Reconnect to the matrix if the IP or protocol changed
     if (
       this.config.host !== config.host || 
@@ -133,30 +137,35 @@ class KramerInstance extends InstanceBase {
     if (this.config.detectSetups) {
       detectCapabilities.push(this.CAPS_SETUPS);
     }
-
-    if (detectCapabilities.length !== 0) {
-      if (this.PromiseConnected) {
-        this.PromiseConnected.then(() => {
+	
+    if (this.PromiseConnected !== null) {
+      	  this.log('debug', 'detecting');
+      this.PromiseConnected.then(() => {
+		if (detectCapabilities.length !== 0) {
           // Once connected, check the capabilities of the matrix if needed.
           this.detectCapabilities(detectCapabilities);
-//          this.init_routing();
+		}
+//		this.init_routing();
+      this.request_video_status();
 //          this.init_actions();
 //          this.init_variables();
-        }).catch((_) => {
+this.log('debug', 'detected');
+      }).catch((_) => {
           // Error while connecting. The error message is already logged, but Node requires
           //  the rejected promise to be handled.
-        });
-      }
+      });
     }
+    
     else {   
       // Rebuild the actions to reflect the capabilities we have.
 this.log('debug', 'init actions');
       this.init_actions();
-      this.init_routing();
       this.init_variables();
+      this.init_routing();
     }
 
-    this.selected_source = this.selected_destination = -1;
+    this.selected_source = -1;
+	this.selected_destination = -1;
   }
 
 
@@ -168,15 +177,19 @@ this.log('debug', 'init actions');
     let outputCount = Math.min(64, Math.max(1, this.config.outputCount));
     let setupsCount = Math.min(64, Math.max(1, this.config.setupsCount));
 
-    this.video_routing = [];	
+/*    this.video_routing = [];	
     for (let i = 0; i<= outputCount; i++) {
       this.video_routing[i] = 0;
       this.audio_routing[i] = 0;
     }
-    for (let i = 0; i<= inputCount; i++) {
-      this.video_reverse_routing[i] = [];
-      this.audio_reverse_routing[i] = [];
+*/	this.log('debug', 'init routing');
+	for (let i = 0; i<= inputCount; i++) {
+      this.reverse_video_routing[i] = [];
+      this.reverse_audio_routing[i] = [];
     }
+	
+	//this.request_video_status();
+	
   }
 
   /**
@@ -201,7 +214,6 @@ this.log('debug', 'init actions');
       // Increment the counter to show we're waiting for a response from a capability.
       this.capabilityWaitingResponsesCounter++;
       try {
-        this.log('debug', cmd);
         this.socket.send(cmd);
       } catch (error) {
         this.log("error", `${error}`);
@@ -212,9 +224,11 @@ this.log('debug', 'init actions');
   /**
    * Connect to the matrix over TCP port 5000 or UDP port 50000.
    */
-  init_connection() {
+async  init_connection() {
+	  this.log ('debug', 'init_connection');
     if (this.socket !== undefined) {
-      this.socket.destroy();
+		this.log ('debug', 'socket exists');
+      await this.socket.destroy();
       delete this.socket;
     }
 
@@ -223,7 +237,7 @@ this.log('debug', 'init actions');
     }
 	
     this.updateStatus("connecting");
-
+	
     this.PromiseConnected = new Promise((resolve, reject) => {
       switch (this.config.connectionProtocol) {
         case this.CONNECT_TCP:
@@ -280,8 +294,12 @@ this.log('debug', 'init actions');
 
       switch (this.config.protocol) {
         case this.PROTOCOL_2000:
-          this.log('debug', 'Received Protocol 2000 data : ' + data);
-          this.receivedData2000(data);
+		  for (let i = 0; i < data.length; i += 4) {
+			let chunk = data.slice(i, i+4);
+            this.log('debug', 'Received Protocol 2000 data : ');
+            this.log ('debug', chunk);
+            this.receivedData2000(chunk);
+		  }
           break;
 
         case this.PROTOCOL_3000:
@@ -346,8 +364,8 @@ this.log('debug', 'init actions');
         if (--this.capabilityWaitingResponsesCounter === 0) {
           // Update the actions now that the new capabilities have been stored.
           this.init_actions();
-          this.init_routing();
           this.init_variables();
+          this.init_routing();
           this.saveConfig(this.config);
         }
         break;
@@ -355,11 +373,19 @@ this.log('debug', 'init actions');
       case this.REQUEST_VIDEO_STATUS : {
         let former_input = this.video_routing[output];
         this.video_routing[output] = input;
-        let index = this.reverse_video_routing[former_input].indexOf(output);
-        if (index > -1) {
-          this.reverse_video_routing[former_input].splice(index, 1);
-        }
-        this.reverse_video_routing[input].push(output);
+this.log('debug', 'Output ' + output + ' / former input : ' + former_input);
+		if (this.reverse_video_routing[former_input] && this.reverse_video_routing[former_input].length > 0) {
+		  let index = this.reverse_video_routing[former_input].indexOf(output);
+		  if (index > -1) {
+            this.reverse_video_routing[former_input].splice(index, 1);
+          }
+		} 
+		else {
+		this.log('debug', 'routing empty');  
+		}
+		if (this.reverse_video_routing[input]) {
+          this.reverse_video_routing[input].push(output);
+		}
         this.check_variables('routing', 'video', output);
         break;
       }
@@ -372,7 +398,7 @@ this.log('debug', 'init actions');
           this.reverse_audio_routing[former_input].splice(index, 1);
         }
         this.reverse_audio_routing[input].push(output);
-        this.check_variables('routing', 'video', output);
+        this.check_variables('routing', 'audio', output);
         break;
       }
     }
@@ -431,8 +457,8 @@ this.log('debug', 'init actions');
     if (this.capabilityWaitingResponsesCounter === 0) {
       // Update the actions now that the new capabilities have been stored.
       this.init_actions();
-      this.init_routing();
       this.init_variables();
+      this.init_routing();
       this.saveConfig(this.config);
     }
   }
@@ -444,15 +470,14 @@ this.log('debug', 'init actions');
    */
   isConnected() {
     switch (this.config.connectionProtocol) {
-      case this.CONNECT_TCP:
-        if (typeof this.socket != 'undefined') {
+      case this.CONNECT_TCP: 
+        if (this.socket) { //if (typeof this.socket != 'undefined' && this.socket !== null) {
           return this.socket.isConnected;
         }
-
+        return false;
       case this.CONNECT_UDP:
         return true;
     }
-
     return false;
   }
 
@@ -676,12 +701,12 @@ this.log('debug', 'init actions');
       case 'routing' :
         if (type == 'video' || type == 'audio') {
           if (destination > 0) {
-            variable_values['Output_' + destination + '_' + type + '_source'] = this[type + '_routing[' + destination + ']'];
+            variable_values['Output_' + destination + '_' + type + '_source'] = this[type + '_routing'][destination];
           }
           else {
             output_count = this[type + '_routing'].length();
             for (i = 1; i < output_count; i++) {
-              variable_values['Output_' + i + '_' + type + '_source'] = this[type + '_routing[' + i + ']'];
+              variable_values['Output_' + i + '_' + type + '_source'] = this[type + '_routing'][i];
             }
           }
         }
@@ -701,7 +726,7 @@ this.log('debug', 'init actions');
         check_variables('routing');
         check_variables('selection');
     }
-
+this.log ('debug', 'setting variables');
     this.setVariableValues(variable_values);
   }
 
@@ -718,7 +743,8 @@ this.log('debug', 'init actions');
     makeCommand (instruction, paramA, paramB, machine) {
       switch (this.config.protocol) {
         case this.PROTOCOL_2000:
-this.log('debug', Buffer.from([
+this.log('debug', 'sending command : ');
+this.log('debug',Buffer.from([
             parseInt(instruction, 10),
             this.MSB + parseInt(paramA || 0, 10),
             this.MSB + parseInt(paramB || 0, 10),
@@ -1213,6 +1239,30 @@ this.log('debug', Buffer.from([
       },
     });
   }
+  
+  request_video_status(output) {
+	  if (output > 0) {
+		  let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, output,1);
+		  try {
+            this.socket.send(cmd);
+          } catch (error) {
+            this.log("error", `${error}`);
+          }
+	  }
+	  else {
+		  for (let i = 1; i <= this.config.outputCount; i++) {
+			let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, i,1);
+		    try {
+              this.socket.send(cmd);
+            } catch (error) {
+              this.log("error", `${error}`);
+            }
+		  }
+	  }
+  }
+  
 }
+
+
 
 runEntrypoint(KramerInstance, []);
