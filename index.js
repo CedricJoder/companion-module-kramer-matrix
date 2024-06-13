@@ -1274,16 +1274,33 @@ this.log('debug',Buffer.from([
 	  }
   }
   
-  // If waiting for a response, buffers message, else sends it
+
+  // Buffers message, then sends it if not waiting for a response.
+
   trySendMessage(cmd) {
-    if (this.outBuffer.length > 0) {
-      this.outBuffer.push(cmd);
-    }
-    else {
-      
+    if (this.outBuffer.push(cmd) == 1) {
+      this.sendNextMessage();
+	     }
     }
   }
 
+  // Acknowledges response from device, and send next message.
+
+
+
+  // Sends next message from buffer
+
+  sendNextMessage() {
+    let cmd = this.outbuffer.shift()
+    if (cmd) {
+      try {
+        this.socket.send(cmd);
+        } catch (error) {
+          this.log("error", `${error}`);
+        }
+	     }
+    }
+  }
 
 
 }
