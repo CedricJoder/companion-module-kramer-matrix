@@ -52,13 +52,20 @@ class KramerInstance extends InstanceBase {
   // A promise that's resolved when sending a message and waiting for response.
   PromiseMessage = null;
 
+  // A buffer for outgoing messages 
+  outBuffer = [];
+
   // The number of capabilities we're waiting responses for before saving the config.
   capabilityWaitingResponsesCounter = 0;
   
-  video_routing = [];
-  audio_routing = [];
-  reverse_video_routing = [[]];
-  reverse_audio_routing = [[]];
+
+  // Internal variables reflecting the state of the matrix
+  videoRouting = [];
+  audioRouting = [];
+  reverseVideoRouting = [[]];
+  reverseAudioRouting = [[]];
+  selectedSource = -1;
+  selectedDestination = -1;
 
   /**
    * Initializes the module and try to detect capabilities.
@@ -95,8 +102,8 @@ class KramerInstance extends InstanceBase {
       this.saveConfig(this.config);
     }
 
-//    this.init_variables();
-//    this.init_connection();
+//    this.initVariables();
+//    this.initConnection();
     await this.configUpdated(this.config);
   }
 
@@ -119,7 +126,7 @@ class KramerInstance extends InstanceBase {
       this.config.port = config.port;
       this.config.connectionProtocol = config.connectionProtocol;
       this.log ('debug', 'reconnecting');
-      this.init_connection();
+      this.initConnection();
     }
     else {
       this.log('debug', 'connection unchanged');
@@ -145,10 +152,10 @@ class KramerInstance extends InstanceBase {
           // Once connected, check the capabilities of the matrix if needed.
           this.detectCapabilities(detectCapabilities);
 		}
-//		this.init_routing();
-      this.request_video_status();
-//          this.init_actions();
-//          this.init_variables();
+//		this.initRouting();
+      this.requestVideoStatus();
+//          this.initActions();
+//          this.initVariables();
 this.log('debug', 'detected');
       }).catch((_) => {
           // Error while connecting. The error message is already logged, but Node requires
@@ -159,36 +166,35 @@ this.log('debug', 'detected');
     else {   
       // Rebuild the actions to reflect the capabilities we have.
 this.log('debug', 'init actions');
-      this.init_actions();
-      this.init_variables();
-      this.init_routing();
+      this.initActions();
+      this.initVariables();
+      this.initRouting();
     }
 
-    this.selected_source = -1;
-	this.selected_destination = -1;
+    this.selectedSource = this.selectedDestination = -1;
   }
 
 
   /** 
    *Initializes the internal routing matrix
    */
-  init_routing() {
+  initRouting() {
     let inputCount = Math.min(64, Math.max(1, this.config.inputCount));
     let outputCount = Math.min(64, Math.max(1, this.config.outputCount));
     let setupsCount = Math.min(64, Math.max(1, this.config.setupsCount));
 
-/*    this.video_routing = [];	
+/*    this.videoRouting = [];	
     for (let i = 0; i<= outputCount; i++) {
-      this.video_routing[i] = 0;
-      this.audio_routing[i] = 0;
+      this.videoRouting[i] = 0;
+      this.audioRouting[i] = 0;
     }
 */	this.log('debug', 'init routing');
 	for (let i = 0; i<= inputCount; i++) {
-      this.reverse_video_routing[i] = [];
-      this.reverse_audio_routing[i] = [];
+      this.reverseVideoRouting[i] = [];
+      this.reverseAudioRouting[i] = [];
     }
 	
-	//this.request_video_status();
+	//this.requestVideoStatus();
 	
   }
 
@@ -224,8 +230,8 @@ this.log('debug', 'init actions');
   /**
    * Connect to the matrix over TCP port 5000 or UDP port 50000.
    */
-async  init_connection() {
-	  this.log ('debug', 'init_connection');
+async  initConnection() {
+	  this.log ('debug', 'initConnection');
     if (this.socket !== undefined) {
 		this.log ('debug', 'socket exists');
       await this.socket.destroy();
@@ -316,7 +322,9 @@ async  init_connection() {
           break;
       }
     });
+  this.trySendMessage();
   }
+
 
   /**
    * Handles a response from a Protocol 2000 matrix.
@@ -363,42 +371,42 @@ async  init_connection() {
         //  if all the requests responded.
         if (--this.capabilityWaitingResponsesCounter === 0) {
           // Update the actions now that the new capabilities have been stored.
-          this.init_actions();
-          this.init_variables();
-          this.init_routing();
+          this.initActions();
+          this.initVariables();
+          this.initRouting();
           this.saveConfig(this.config);
         }
         break;
       case this.SWITCH_VIDEO : 
       case this.REQUEST_VIDEO_STATUS : {
-        let former_input = this.video_routing[output];
-        this.video_routing[output] = input;
-this.log('debug', 'Output ' + output + ' / former input : ' + former_input);
-		if (this.reverse_video_routing[former_input] && this.reverse_video_routing[former_input].length > 0) {
-		  let index = this.reverse_video_routing[former_input].indexOf(output);
+        let formerInput = this.videoRouting[output];
+        this.videoRouting[output] = input;
+this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
+		if (this.reverseVideoRouting[formerInput] && this.reverseVideoVouting[formerInput].length > 0) {
+		  let index = this.reverseVideoRouting[formerInput].indexOf(output);
 		  if (index > -1) {
-            this.reverse_video_routing[former_input].splice(index, 1);
+            this.reverseVideoRouting[formerInput].splice(index, 1);
           }
 		} 
 		else {
 		this.log('debug', 'routing empty');  
 		}
-		if (this.reverse_video_routing[input]) {
-          this.reverse_video_routing[input].push(output);
+		if (this.reverseVideoRouting[input]) {
+          this.reverseVideoRouting[input].push(output);
 		}
-        this.check_variables('routing', 'video', output);
+        this.checkVariables('routing', 'video', output);
         break;
       }
       case this.SWITCH_AUDIO : 
       case this.REQUEST_AUDIO_STATUS : {
-        let former_input = this.audio_routing[output];
-        this.audio_routing[output] = input;
-        let index = this.reverse_audio_routing[former_input].indexOf(output);
+        let formerInput = this.audioRouting[output];
+        this.audioRouting[output] = input;
+        let index = this.reverseAudioRouting[formerInput].indexOf(output);
         if (index > -1) {
-          this.reverse_audio_routing[former_input].splice(index, 1);
+          this.reverseAudioRouting[formerInput].splice(index, 1);
         }
-        this.reverse_audio_routing[input].push(output);
-        this.check_variables('routing', 'audio', output);
+        this.reverseAudioRouting[input].push(output);
+        this.checkVariables('routing', 'audio', output);
         break;
       }
     }
@@ -456,9 +464,9 @@ this.log('debug', 'Output ' + output + ' / former input : ' + former_input);
     // Save the config if all the requests responded.
     if (this.capabilityWaitingResponsesCounter === 0) {
       // Update the actions now that the new capabilities have been stored.
-      this.init_actions();
-      this.init_variables();
-      this.init_routing();
+      this.initActions();
+      this.initVariables();
+      this.initRouting();
       this.saveConfig(this.config);
     }
   }
@@ -471,7 +479,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + former_input);
   isConnected() {
     switch (this.config.connectionProtocol) {
       case this.CONNECT_TCP: 
-        if (this.socket) { //if (typeof this.socket != 'undefined' && this.socket !== null) {
+        if (this.socket) { 
           return this.socket.isConnected;
         }
         return false;
@@ -668,18 +676,18 @@ this.log('debug', 'Output ' + output + ' / former input : ' + former_input);
    * Creates variables.
    */
   
-  init_variables() {
+  initVariables() {
 	this.log ('debug', 'Initializing variables');
     let variables = [];
 
-    variables.push({ variableId : 'selected_source', name : 'Selected source'});  
-    variables.push({ variableId : 'selected_dest', name : 'Selected destination'});  
+    variables.push({ variableId : 'selectedSource', name : 'Selected source'});  
+    variables.push({ variableId : 'selectedDestination', name : 'Selected destination'});  
     
 
     // Set some sane minimum/maximum values on the capabilities
     let inputCount = Math.min(64, Math.max(1, this.config.inputCount));
     let outputCount = Math.min(64, Math.max(1, this.config.outputCount));
-    let setupsCount = Math.min(64, Math.max(1, this.config.setupsCount));
+    let setupsCount = Math.min(64, this.config.setupsCount);
 
     for (let i = 1; i <= outputCount; i++) {
       variables.push({ variableId : 'Output_'+ i + '_video_source', name : 'Output #' + i + ' video source'});  
@@ -695,39 +703,42 @@ this.log('debug', 'Output ' + output + ' / former input : ' + former_input);
   }
 
 
-  check_variables(category, type, destination) {
-    let variable_values = {};
+  checkVariables(category, type, destination) {
+    let variableValues = {};
     switch (category) {
       case 'routing' :
         if (type == 'video' || type == 'audio') {
           if (destination > 0) {
-            variable_values['Output_' + destination + '_' + type + '_source'] = this[type + '_routing'][destination];
+            variableValues['Output_' + destination + '_' + type + '_source'] = this[type + 'Routing'][destination];
           }
           else {
-            output_count = this[type + '_routing'].length();
-            for (i = 1; i < output_count; i++) {
-              variable_values['Output_' + i + '_' + type + '_source'] = this[type + '_routing'][i];
+            let outputCount = this[type + 'Routing'].length();
+            for (i = 1; i < outputCount; i++) {
+              variableValues['Output_' + i + '_' + type + '_source'] = this[type + 'Routing'][i];
             }
           }
         }
         else {
-          check_variables('routing', 'video', destination);
-          check_variables('routing', 'audio', destination);
+          checkVariables('routing', 'video', destination);
+          checkVariables('routing', 'audio', destination);
         x
         }
         break;
       case 'selection' :
-        variable_values['selected_source'] = this.selected_source;
-        variable_values['selected_destination'] = this.selected_destination;
+        variableValues['selectedSource'] = this.selectedSource;
+        variable_values['selectedDestination'] = this.selectedDestination;
 
         break;
 
       default : 
-        check_variables('routing');
-        check_variables('selection');
+        checkVariables('routing');
+        checkVariables('selection');
     }
 this.log ('debug', 'setting variables');
-    this.setVariableValues(variable_values);
+
+    if (Object.keys(variableValues).length > 0) {
+      this.setVariableValues(variableValues);
+    }
   }
 
     /**
@@ -867,7 +878,7 @@ this.log('debug',Buffer.from([
   /**
    * Creates the actions for this module.
    */
-  init_actions() {
+  initActions() {
     let inputOpts = [{ id: "0", label: "Off" }];
     let outputOpts = [{ id: "0", label: "All" }];
     let setups = [];
@@ -875,7 +886,7 @@ this.log('debug',Buffer.from([
     // Set some sane minimum/maximum values on the capabilities
     let inputCount = Math.min(64, Math.max(1, this.config.inputCount));
     let outputCount = Math.min(64, Math.max(1, this.config.outputCount));
-    let setupsCount = Math.min(64, Math.max(1, this.config.setupsCount));
+    let setupsCount = Math.min(64,this.config.setupsCount);
 
     // Build the inputs, outputs, and setups
     for (let i = 1; i <= inputCount; i++) {
@@ -1012,7 +1023,7 @@ this.log('debug',Buffer.from([
     };
 */
     this.setActionDefinitions({
-      switch_audio: {
+      switchAudio: {
         name: "Switch Audio",
         options: [
           {
@@ -1044,7 +1055,7 @@ this.log('debug',Buffer.from([
           }
         },
       },
-      switch_video: {
+      switchVideo: {
         name: "Switch Video",
         options: [
           {
@@ -1076,7 +1087,7 @@ this.log('debug',Buffer.from([
           }
         },
       },
-      switch_video_dynamic: {
+      switchVideoDynamic: {
         name: "Switch Video (Dynamic)",
         options: [
           {
@@ -1094,12 +1105,12 @@ this.log('debug',Buffer.from([
             default: "0",
           },
         ],
-        callback: async (event) => {
+        callback: async (event, context) => {
           const input = parseInt(
-            this.parseVariablesInString(event.options.input)
+            context.parseVariablesInString(event.options.input)
           );
           const output = parseInt(
-            this.parseVariablesInString(event.options.output)
+            context.parseVariablesInString(event.options.output)
           );
           let cmd = this.makeCommand(this.SWITCH_VIDEO, input, output);
           try {
@@ -1109,7 +1120,7 @@ this.log('debug',Buffer.from([
           }
         },
       },
-      switch_audio_dynamic: {
+      switchAudioDynamic: {
         name: "Switch Audio (Dynamic)",
         options: [
           {
@@ -1129,12 +1140,12 @@ this.log('debug',Buffer.from([
             regex: "/^\\d*$/",
           },
         ],
-        callback: async (event) => {
+        callback: async (event, context) => {
           const input = parseInt(
-            this.parseVariablesInString(event.options.input)
+            context.parseVariablesInString(event.options.input)
           );
           const output = parseInt(
-            this.parseVariablesInString(event.options.output)
+            context.parseVariablesInString(event.options.output)
           );
           let cmd = this.makeCommand(this.SWITCH_AUDIO, input, output);
           try {
@@ -1239,8 +1250,10 @@ this.log('debug',Buffer.from([
       },
     });
   }
+
+
   
-  request_video_status(output) {
+  requestVideoStatus(output) {
 	  if (output > 0) {
 		  let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, output,1);
 		  try {
