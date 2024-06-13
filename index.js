@@ -1276,8 +1276,8 @@ this.log('debug',Buffer.from([
   
   // If waiting for a response, buffers message, else sends it
   trySendMessage(cmd) {
-    if (outBuffer.length < 0) {
-      outBuffer.push(cmd);
+    if (this.outBuffer.length > 0) {
+      this.outBuffer.push(cmd);
     }
     else {
       
