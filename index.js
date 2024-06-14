@@ -66,6 +66,19 @@ class KramerInstance extends InstanceBase {
   reverseAudioRouting = [[]];
   selectedSource = -1;
   selectedDestination = -1;
+  
+  // time limit for waiting for response from device
+  RESPONSE_TIMEOUT = 100;
+  // Number of tries for same message
+  MAX_ATTEMPTS = 10;
+  // Timeout between a response and next message
+  NEXT_MESSAGE_TIMEOUT = 500
+  // timeout id for escaping waiting state
+  timeoutId = 0;
+  // current attempts number
+  attempts = 0;
+  
+  
 
   /**
    * Initializes the module and try to detect capabilities.
@@ -152,8 +165,12 @@ class KramerInstance extends InstanceBase {
           // Once connected, check the capabilities of the matrix if needed.
           this.detectCapabilities(detectCapabilities);
 		}
+		this.initActions();
+        this.initVariables();
+        this.initRouting();
+		this.requestVideoStatus();
+		this.requestAudioStatus();
 //		this.initRouting();
-      this.requestVideoStatus();
 //          this.initActions();
 //          this.initVariables();
 this.log('debug', 'detected');
@@ -194,8 +211,6 @@ this.log('debug', 'init actions');
       this.reverseAudioRouting[i] = [];
     }
 	
-	//this.requestVideoStatus();
-	
   }
 
   /**
@@ -219,11 +234,12 @@ this.log('debug', 'init actions');
 
       // Increment the counter to show we're waiting for a response from a capability.
       this.capabilityWaitingResponsesCounter++;
-      try {
-        this.socket.send(cmd);
-      } catch (error) {
-        this.log("error", `${error}`);
-      }
+	  this.trySendMessage(cmd);
+//      try {
+//        this.socket.send(cmd);
+//      } catch (error) {
+//        this.log("error", `${error}`);
+//      }
     }
   }
 
@@ -232,6 +248,8 @@ this.log('debug', 'init actions');
    */
 async  initConnection() {
 	  this.log ('debug', 'initConnection');
+	this.outBuffer = [];
+	  
     if (this.socket !== undefined) {
 		this.log ('debug', 'socket exists');
       await this.socket.destroy();
@@ -250,6 +268,7 @@ async  initConnection() {
           this.socket = new TCPHelper(this.config.host, this.config.port, {
             reconnect_interval: 5000,
           });
+		  socket.writableLength = 4;
           break;
 
         case this.CONNECT_UDP:
@@ -292,7 +311,8 @@ async  initConnection() {
 
     this.socket.on("data", (data) => {
       // Note: 'data' is an ArrayBuffer
-
+//		  console.log('received raw data : ');
+//		  console.log(data);
       if (typeof data !== "object" || data.length < 4) {
         // Unknown or invalid response
         return;
@@ -302,9 +322,15 @@ async  initConnection() {
         case this.PROTOCOL_2000:
 		  for (let i = 0; i < data.length; i += 4) {
 			let chunk = data.slice(i, i+4);
-            this.log('debug', 'Received Protocol 2000 data : ');
-            this.log ('debug', chunk);
-            this.receivedData2000(chunk);
+			if (chunk[0] < this.MSB) {
+			  this.ackResponse();
+			  let cmdstring = '';
+		      for (let i=0; i<4; i++){
+		        cmdstring += (Number(chunk[i]) + ',');
+		        }
+              this.log('debug', 'Received Protocol 2000 data : ' + cmdstring);
+              this.receivedData2000(chunk);
+	        }
 		  }
           break;
 
@@ -322,7 +348,6 @@ async  initConnection() {
           break;
       }
     });
-  this.trySendMessage();
   }
 
 
@@ -371,18 +396,18 @@ async  initConnection() {
         //  if all the requests responded.
         if (--this.capabilityWaitingResponsesCounter === 0) {
           // Update the actions now that the new capabilities have been stored.
-          this.initActions();
-          this.initVariables();
-          this.initRouting();
           this.saveConfig(this.config);
         }
         break;
-      case this.SWITCH_VIDEO : 
-      case this.REQUEST_VIDEO_STATUS : {
+	  case this.REQUEST_VIDEO_STATUS : 
+	    // Look for the requested parameter 
+	    output = this.outBuffer[0][2] ^ this.MSB;
+		input = data[2] ^ this.MSB;
+      case this.SWITCH_VIDEO : {
         let formerInput = this.videoRouting[output];
         this.videoRouting[output] = input;
 this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
-		if (this.reverseVideoRouting[formerInput] && this.reverseVideoVouting[formerInput].length > 0) {
+		if (this.reverseVideoRouting[formerInput] && this.reverseVideoRouting[formerInput].length > 0) {
 		  let index = this.reverseVideoRouting[formerInput].indexOf(output);
 		  if (index > -1) {
             this.reverseVideoRouting[formerInput].splice(index, 1);
@@ -397,8 +422,10 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
         this.checkVariables('routing', 'video', output);
         break;
       }
-      case this.SWITCH_AUDIO : 
-      case this.REQUEST_AUDIO_STATUS : {
+      case this.REQUEST_AUDIO_STATUS : 
+	    output = this.outBuffer[0][2] ^ this.MSB;
+		input = data[2] ^ this.MSB;
+      case this.SWITCH_AUDIO : {
         let formerInput = this.audioRouting[output];
         this.audioRouting[output] = input;
         let index = this.reverseAudioRouting[formerInput].indexOf(output);
@@ -754,13 +781,6 @@ this.log ('debug', 'setting variables');
     makeCommand (instruction, paramA, paramB, machine) {
       switch (this.config.protocol) {
         case this.PROTOCOL_2000:
-this.log('debug', 'sending command : ');
-this.log('debug',Buffer.from([
-            parseInt(instruction, 10),
-            this.MSB + parseInt(paramA || 0, 10),
-            this.MSB + parseInt(paramB || 0, 10),
-            this.MSB + parseInt(machine || 1, 10),
-          ]));
           return Buffer.from([
             parseInt(instruction, 10),
             this.MSB + parseInt(paramA || 0, 10),
@@ -879,6 +899,7 @@ this.log('debug',Buffer.from([
    * Creates the actions for this module.
    */
   initActions() {
+	this.log('debug', 'Initializing actions');
     let inputOpts = [{ id: "0", label: "Off" }];
     let outputOpts = [{ id: "0", label: "All" }];
     let setups = [];
@@ -899,130 +920,43 @@ this.log('debug',Buffer.from([
       setups.push({ id: i, label: `Preset ${i}` });
     }
 
-    /**
-     * Formats the command as per the Kramer 2000 protocol.
-     *
-     * @param instruction    String or base 10 instruction code for the command
-     * @param paramA         String or base 10 parameter A for the instruction
-     * @param paramB         String or base 10 parameter B for the instruction
-     * @param machine        String or base 10 for the machine to target
-     * @returns              The built command to send
-     */
-/*
-    const makeCommand = (instruction, paramA, paramB, machine) => {
-      this.log('debug', 'cmd');
-      switch (this.config.protocol) {
-        case this.PROTOCOL_2000:
-          return Buffer.from([
-            parseInt(instruction, 10),
-            this.MSB + parseInt(paramA || 0, 10),
-            this.MSB + parseInt(paramB || 0, 10),
-            this.MSB + parseInt(machine || 1, 10),
-          ]);
 
-        case this.PROTOCOL_3000:
-          switch (instruction) {
-            case this.DEFINE_MACHINE:
-              switch (paramA) {
-                case this.CAPS_VIDEO_INPUTS:
-                case this.CAPS_VIDEO_OUTPUTS:
-                  // Are combined into one instruction in Protocol 3000
-                  return "#INFO-IO?\r";
-
-                case this.CAPS_SETUPS:
-                  return "#INFO-PRST?\r";
-              }
-              break;
-
-            case this.SWITCH_AUDIO:
-              // paramA = inputs
-              // paramB = outputs
-
-              if (paramA === "0") {
-                paramA = this.getDisconnectParameter();
-              }
-
-              if (paramB === "0") {
-                // '0' means route to all outputs
-                paramB = "*";
-              }
-
-              switch (this.config.customizeRoute) {
-                case this.ROUTE_ROUTE:
-                  return `#ROUTE 1,${paramB},${paramA}\r`;
-
-                default:
-                  this.log(
-                    "info",
-                    "Audio can only be switched using the #ROUTE command."
-                  );
-                  return null;
-              }
-              break;
-
-            case this.SWITCH_VIDEO:
-              // paramA = inputs
-              // paramB = outputs
-
-              if (paramA === "0") {
-                paramA = this.getDisconnectParameter();
-              }
-
-              if (paramB === "0") {
-                // '0' means route to all outputs
-                paramB = "*";
-              }
-
-              switch (this.config.customizeRoute) {
-                case this.ROUTE_ROUTE:
-                  return `#ROUTE 0,${paramB},${paramA}\r`;
-
-                case this.ROUTE_VID:
-                default:
-                  return `#VID ${paramA}>${paramB}\r`;
-              }
-              break;
-
-            case this.STORE_SETUP:
-              return `#PRST-STO ${paramA}\r`;
-
-            case this.DELETE_SETUP:
-              this.log(
-                "info",
-                "Deleting presets is not supported on Protocol 3000 matrices."
-              );
-              return;
-
-            case this.RECALL_SETUP:
-              return `#PRST-RCL ${paramA}\r`;
-
-            case this.FRONT_PANEL:
-              return `#LOCK-FP ${paramA}\r`;
-          }
-
-          break;
-      }
-    };
-*/
-    /**
-     * Difference matrices use different command to issue a disconnect.
-     * Return the command appropriate for the user's matrix.
-     *
-     * @returns              The parameter to disconnect the output
-     */
-/*
-    const getDisconnectParameter = () => {
-      switch (this.config.customizeDisconnect) {
-        case this.DISCONNECT_INP1:
-          return this.config.inputCount + 1;
-
-        case this.DISCONNECT_0:
-        default:
-          return "0";
-      }
-    };
-*/
     this.setActionDefinitions({
+		
+	  requestAudio: {
+        name: "Request Audio Source routed to destination",
+        options: [
+          {
+            type: "dropdown",
+            name: "Output #",
+            id: "output",
+            default: "0",
+            choices: outputOpts,
+          },
+        ],
+        callback: async (event) => {
+		  this.requestAudioStatus(event.options.output);
+          this.log("debug", `Kramer command: ${cmd}`);
+        },
+      },
+	  
+	  requestVideo: {
+        name: "Request Video Source routed to destination",
+        options: [
+          {
+            type: "dropdown",
+            name: "Output #",
+            id: "output",
+            default: "0",
+            choices: outputOpts,
+          },
+        ],
+        callback: async (event) => {
+		  this.requestVideoStatus(event.options.output);
+        },
+      },
+	  
+	  
       switchAudio: {
         name: "Switch Audio",
         options: [
@@ -1255,50 +1189,111 @@ this.log('debug',Buffer.from([
   
   requestVideoStatus(output) {
 	  if (output > 0) {
-		  let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, output,1);
-		  try {
+		  let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, output,1);
+		  this.trySendMessage(cmd);
+/*		  try {
             this.socket.send(cmd);
           } catch (error) {
             this.log("error", `${error}`);
           }
-	  }
+*/	  }
 	  else {
 		  for (let i = 1; i <= this.config.outputCount; i++) {
 			let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, i,1);
-		    try {
-              this.socket.send(cmd);
-            } catch (error) {
+		    this.trySendMessage(cmd);
+/*	  	      try {
+                this.socket.send(cmd);
+                } catch (error) {
               this.log("error", `${error}`);
             }
-		  }
+*/	        }
 	  }
   }
+  
+  
+  
+  requestAudioStatus(output) {
+	  if (output > 0) {
+		  let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, output,1);
+		  this.trySendMessage(cmd);
+/*		  try {
+            this.socket.send(cmd);
+          } catch (error) {
+            this.log("error", `${error}`);
+          }
+*/	  }
+	  else {
+		  for (let i = 1; i <= this.config.outputCount; i++) {
+			let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, i,1);
+		    this.trySendMessage(cmd);
+/*	  	      try {
+                this.socket.send(cmd);
+                } catch (error) {
+              this.log("error", `${error}`);
+            }
+*/	        }
+	  }
+  }
+  
   
 
   // Buffers message, then sends it if not waiting for a response.
 
   trySendMessage(cmd) {
     if (this.outBuffer.push(cmd) == 1) {
-      this.sendNextMessage();
-	     }
+      this.sendMessage();
     }
   }
 
   // Acknowledges response from device, and send next message.
+  ackResponse () {
+	this.attempts = 0;
+	clearTimeout(this.timeoutId);
+	setTimeout(() => {
+	  this.outBuffer?.shift();
+      this.sendMessage();
+	}, this.NEXT_MESSAGE_TIMEOUT)
+  }
 
 
+  // Timeout function to handle long waiting state
+  
+  lateResponse() {
+	if (this.outBuffer?.length > 0) {
+	  if (this.attempts < this.MAX_ATTEMPTS) {
+        this.sendMessage();
+	  }
+	  else {
+	    this.log('error', 'error waiting for message : ' + this.outBuffer[0]);
+		this.ackResponse();
+	  }
+	}
+  }
 
+ 
   // Sends next message from buffer
 
-  sendNextMessage() {
-    let cmd = this.outbuffer.shift()
+  sendMessage() {
+    let cmd = this.outBuffer[0];
     if (cmd) {
       try {
-        this.socket.send(cmd);
-        } catch (error) {
+		this.attempts++;
+		let cmdstring = '';
+		for (let i=0; i<4; i++){
+		  cmdstring += (Number(cmd[i]) + ',');
+		}
+		this.log('debug', 'sending message : ' + cmdstring);
+		clearTimeout(this.timeoutId);
+		this.timeoutId = setTimeout(() => {
+			this.lateResponse();
+		  }, 
+		  this.RESPONSE_TIMEOUT
+		);
+		this.socket.send(cmd);
+	  }
+	  catch (error) {
           this.log("error", `${error}`);
-        }
-	     }
+      }
     }
   }
 
