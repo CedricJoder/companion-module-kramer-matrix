@@ -1,4 +1,4 @@
-module.exports = (
+module.exports = {
   
     // Decimal codes for the instructions supported by Kramer Matrix (Protocol 2000).
   // See https://kramerav.com/support/download.asp?f=35567
@@ -40,16 +40,14 @@ module.exports = (
   reverseAudioRouting = [[]],
   selectedSource = -1,
   selectedDestination = -1,
-  
-  
-  
 
     /**
    * Handles a response from a Protocol 2000 matrix.
    *
    * @param data     The data received from the matrix (ArrayBuffer)
    */
-  receivedData2000(data) {
+   
+  receivedData2000 (data) {
     // The response to a command returns the first byte with the second most
     //  significant bit on. If we turn that second bit off, we can compare the
     //  first byte of the response to the first byte of the command sent to see
@@ -130,7 +128,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
         break;
       }
     }
-  }
+  },
 
   /**
    * Handles a response from a Protocol 3000 matrix.
@@ -189,7 +187,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
       this.initRouting();
       this.saveConfig(this.config);
     }
-  }
+  },
 
 
   /**
@@ -294,7 +292,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
 
           break;
       }
-    };
+    },
 
 
 
@@ -313,7 +311,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
         default:
           return "0";
       }
-    }
+    },
    
    
   
@@ -338,7 +336,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
             }
 */	        }
 	  }
-  }
+  },
   
   
   
@@ -363,7 +361,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
             }
 */	        }
 	  }
-  }
+  },
   
   
 
@@ -373,7 +371,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
     if (this.outBuffer.push(cmd) == 1) {
       this.sendMessage();
     }
-  }
+  },
 
   // Acknowledges response from device, and send next message.
   ackResponse () {
@@ -383,7 +381,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
 	  this.outBuffer?.shift();
       this.sendMessage();
 	}, this.NEXT_MESSAGE_TIMEOUT)
-  }
+  },
 
 
   // Timeout function to handle long waiting state
@@ -398,7 +396,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
 		this.ackResponse();
 	  }
 	}
-  }
+  },
 
  
   // Sends next message from buffer
@@ -425,12 +423,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
           this.log("error", `${error}`);
       }
     }
-  }
+  },
 
 
 }
-
-
-
-  
-  )
