@@ -12,17 +12,17 @@ module.exports = {
   FRONT_PANEL : 30,
   DEFINE_MACHINE : 62,
 
-  CAPS_VIDEO_INPUTS = 1,
-  CAPS_VIDEO_OUTPUTS = 2,
-  CAPS_SETUPS = 3,
+  CAPS_VIDEO_INPUTS : 1,
+  CAPS_VIDEO_OUTPUTS : 2,
+  CAPS_SETUPS : 3,
 
   //  Define the protocols this module may support:
-  PROTOCOL_2000 = "2000",
-  PROTOCOL_3000 = "3000",
+  PROTOCOL_2000 : "2000",
+  PROTOCOL_3000 : "3000",
 
   // Define the possible parameters to disconnect an output:
-  DISCONNECT_0 = "0",
-  DISCONNECT_INP1 = "+1",
+  DISCONNECT_0 : "0",
+  DISCONNECT_INP1 : "+1",
   
   
   
