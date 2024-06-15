@@ -6,7 +6,7 @@ const {
   TCPHelper,
 } = require("@companion-module/base");
 
-const actions = require('./actions');
+const actions = require('./src/actions');
 
 
 
