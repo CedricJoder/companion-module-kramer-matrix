@@ -29,17 +29,17 @@ module.exports = {
 
   // Protocol 2000: The most significant bit for bytes 2-4 must be 1. Adding 128 to
   //  each of those bytes accomplishes this.
-  MSB = 128,
+  MSB : 128,
   
   
   
   // Internal variables reflecting the state of the matrix
-  videoRouting = [],
-  audioRouting = [],
-  reverseVideoRouting = [[]],
-  reverseAudioRouting = [[]],
-  selectedSource = -1,
-  selectedDestination = -1,
+  videoRouting : [],
+  audioRouting : [],
+  reverseVideoRouting : [[]],
+  reverseAudioRouting : [[]],
+  selectedSource : -1,
+  selectedDestination : -1,
 
     /**
    * Handles a response from a Protocol 2000 matrix.
