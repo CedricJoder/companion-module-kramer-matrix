@@ -3,43 +3,43 @@ module.exports = (
     // Decimal codes for the instructions supported by Kramer Matrix (Protocol 2000).
   // See https://kramerav.com/support/download.asp?f=35567
   // See https://kramerav.com/downloads/protocols/protocol_2000_rev0_51.pdf
-  SWITCH_VIDEO = 1;
-  SWITCH_AUDIO = 2;
-  STORE_SETUP = 3;
-  RECALL_SETUP = 4;
-  REQUEST_VIDEO_STATUS = 5;
-  REQUEST_AUDIO_STATUS = 6;
-  FRONT_PANEL = 30;
-  DEFINE_MACHINE = 62;
+  SWITCH_VIDEO = 1,
+  SWITCH_AUDIO = 2,
+  STORE_SETUP = 3,
+  RECALL_SETUP = 4,
+  REQUEST_VIDEO_STATUS = 5,
+  REQUEST_AUDIO_STATUS = 6,
+  FRONT_PANEL = 30,
+  DEFINE_MACHINE = 62,
 
-  CAPS_VIDEO_INPUTS = 1;
-  CAPS_VIDEO_OUTPUTS = 2;
-  CAPS_SETUPS = 3;
+  CAPS_VIDEO_INPUTS = 1,
+  CAPS_VIDEO_OUTPUTS = 2,
+  CAPS_SETUPS = 3,
 
   //  Define the protocols this module may support:
-  PROTOCOL_2000 = "2000";
-  PROTOCOL_3000 = "3000";
+  PROTOCOL_2000 = "2000",
+  PROTOCOL_3000 = "3000",
 
   // Define the possible parameters to disconnect an output:
-  DISCONNECT_0 = "0";
-  DISCONNECT_INP1 = "+1";
+  DISCONNECT_0 = "0",
+  DISCONNECT_INP1 = "+1",
   
   
   
 
   // Protocol 2000: The most significant bit for bytes 2-4 must be 1. Adding 128 to
   //  each of those bytes accomplishes this.
-  MSB = 128;
+  MSB = 128,
   
   
   
   // Internal variables reflecting the state of the matrix
-  videoRouting = [];
-  audioRouting = [];
-  reverseVideoRouting = [[]];
-  reverseAudioRouting = [[]];
-  selectedSource = -1;
-  selectedDestination = -1;
+  videoRouting = [],
+  audioRouting = [],
+  reverseVideoRouting = [[]],
+  reverseAudioRouting = [[]],
+  selectedSource = -1,
+  selectedDestination = -1,
   
   
   
