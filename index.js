@@ -6,10 +6,25 @@ const {
   TCPHelper,
 } = require("@companion-module/base");
 
+const actions = require('./actions');
+
+
+
 class KramerInstance extends InstanceBase {
   constructor(internal) {
     super(internal);
+    
+    // Assign the methods from the listed files to this class
+    Object.assign(this, {
+    //...configFields,
+    //...api,
+    ...actions,
+    //...variables,
+    //...feedbacks,
+    //...presets,                        
+                })
   }
+
 
   // Decimal codes for the instructions supported by Kramer Matrix (Protocol 2000).
   // See https://kramerav.com/support/download.asp?f=35567
@@ -898,7 +913,7 @@ this.log ('debug', 'setting variables');
   /**
    * Creates the actions for this module.
    */
-  initActions() {
+/*  initActions() {
 	this.log('debug', 'Initializing actions');
     let inputOpts = [{ id: "0", label: "Off" }];
     let outputOpts = [{ id: "0", label: "All" }];
@@ -1124,7 +1139,7 @@ this.log ('debug', 'setting variables');
           let cmd = this.makeCommand(
             this.STORE_SETUP,
             event.options.setup,
-            0 /* STORE */
+            0 // STORE 
           );
           try {
             this.socket.send(cmd);
@@ -1150,7 +1165,7 @@ this.log ('debug', 'setting variables');
           let cmd = this.makeCommand(
             this.STORE_SETUP,
             event.options.setup,
-            1 /* DELETE */
+            1 // DELETE 
           );
           try {
             this.socket.send(cmd);
@@ -1184,7 +1199,7 @@ this.log ('debug', 'setting variables');
       },
     });
   }
-
+*/
 
   
   requestVideoStatus(output) {
