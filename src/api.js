@@ -3,14 +3,14 @@ module.exports = {
     // Decimal codes for the instructions supported by Kramer Matrix (Protocol 2000).
   // See https://kramerav.com/support/download.asp?f=35567
   // See https://kramerav.com/downloads/protocols/protocol_2000_rev0_51.pdf
-  SWITCH_VIDEO = 1,
-  SWITCH_AUDIO = 2,
-  STORE_SETUP = 3,
-  RECALL_SETUP = 4,
-  REQUEST_VIDEO_STATUS = 5,
-  REQUEST_AUDIO_STATUS = 6,
-  FRONT_PANEL = 30,
-  DEFINE_MACHINE = 62,
+  SWITCH_VIDEO : 1,
+  SWITCH_AUDIO : 2,
+  STORE_SETUP : 3,
+  RECALL_SETUP : 4,
+  REQUEST_VIDEO_STATUS : 5,
+  REQUEST_AUDIO_STATUS : 6,
+  FRONT_PANEL : 30,
+  DEFINE_MACHINE : 62,
 
   CAPS_VIDEO_INPUTS = 1,
   CAPS_VIDEO_OUTPUTS = 2,
