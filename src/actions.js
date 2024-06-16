@@ -29,7 +29,7 @@ module.exports = {
 
     this.setActionDefinitions({
 		
-	  requestAudio: {
+      requestAudio: {
         name: "Request Audio Source routed to destination",
         options: [
           {
@@ -45,8 +45,27 @@ module.exports = {
           this.log("debug", `Kramer command: ${cmd}`);
         },
       },
+	
+      requestAudioDynamic: {
+        name: "Request Audio Source routed to destination (dynamic)",
+        options: [
+          {
+            type: "textinput",
+            useVariables: true,
+            name: "Output #",
+            id: "output",
+            default: "0",
+          },
+        ],
+        callback: async (event, context) => {
+          const output = parseInt(
+            context.parseVariablesInString(event.options.output)
+          );
+          this.requestAudioStatus(output);
+        },
+      },
 	  
-	  requestVideo: {
+      requestVideo: {
         name: "Request Video Source routed to destination",
         options: [
           {
@@ -160,6 +179,7 @@ module.exports = {
           }
         },
       },
+
       switchAudioDynamic: {
         name: "Switch Audio (Dynamic)",
         options: [

@@ -68,6 +68,7 @@ class KramerInstance extends InstanceBase {
 	  this.log('debug', 'init');
     this.config = config;
     this.updateStatus("ok");
+
 //    this.init_actions();
  
     // TODO: Convert this to the new upgrade infrastructure!
@@ -120,7 +121,7 @@ class KramerInstance extends InstanceBase {
       this.config.port = config.port;
       this.config.connectionProtocol = config.connectionProtocol;
       this.log ('debug', 'reconnecting');
-      this.initConnection();
+      await this.initConnection();
     }
     else {
       this.log('debug', 'connection unchanged');
@@ -142,7 +143,7 @@ class KramerInstance extends InstanceBase {
     if (this.PromiseConnected !== null) {
       	  this.log('debug', 'detecting');
       this.PromiseConnected.then(() => {
-		if (detectCapabilities.length !== 0) {
+		if (detectCapabilities.length !== 0) {this.log('debug', '145');
           // Once connected, check the capabilities of the matrix if needed.
           this.detectCapabilities(detectCapabilities);
 		}
@@ -151,11 +152,9 @@ class KramerInstance extends InstanceBase {
         this.initRouting();
 		this.requestVideoStatus();
 		this.requestAudioStatus();
-//		this.initRouting();
-//          this.initActions();
-//          this.initVariables();
+
 this.log('debug', 'detected');
-      }).catch((_) => {
+      }, () => {this.log('error', 'connection problem')}).catch((_) => {
           // Error while connecting. The error message is already logged, but Node requires
           //  the rejected promise to be handled.
       });
@@ -230,7 +229,7 @@ this.log('debug', 'init actions');
 async  initConnection() {
 	  this.log ('debug', 'initConnection');
 	this.outBuffer = [];
-	  
+    	   
     if (this.socket !== undefined) {
 		this.log ('debug', 'socket exists');
       await this.socket.destroy();
@@ -249,7 +248,7 @@ async  initConnection() {
           this.socket = new TCPHelper(this.config.host, this.config.port, {
             reconnect_interval: 5000,
           });
-		  socket.writableLength = 4;
+          this.socket.writableLength = 4;
           break;
 
         case this.CONNECT_UDP:
@@ -263,7 +262,7 @@ async  initConnection() {
         if (this.currentStatus !== "error") {
           // Only log the error if the module isn't already in this state.
           // This is to prevent spamming the log during reconnect failures.
-          this.log("debug", "Network error", err);
+          //this.log("debug", "Network error", err);
           this.updateStatus("connection_failure", err);
           this.log("error", `Network error: ${err.message}`);
         }
