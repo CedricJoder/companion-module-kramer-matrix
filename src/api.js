@@ -38,8 +38,39 @@ module.exports = {
   audioRouting : [],
   reverseVideoRouting : [[]],
   reverseAudioRouting : [[]],
-  selectedSource : -1,
-  selectedDestination : -1,
+  selectedVideoSource : '',
+  selectedAudioSource : '',
+  selectedDestination : '',
+
+
+
+  /**
+   * Detects the number of inputs/outputs of the matrix.
+   *
+   * @param detectCapabilities     An array of capabilities to detect from the matrix
+   */
+  detectCapabilities(detectCapabilities) {
+	this.log('debug', 'Detecting Capabilities : ' + detectCapabilities.length);
+    // Reset the counter
+    this.capabilityWaitingResponsesCounter = 0;
+
+    if (detectCapabilities.length === 0) {
+      // No capabilities to detect.
+      return;
+    }
+
+    for (let i = 0; i < detectCapabilities.length; i++) {
+      // Ask the matrix to define its capabilities for anything unknown.
+      let cmd = this.makeCommand(this.DEFINE_MACHINE, detectCapabilities[i], 1);
+
+      // Increment the counter to show we're waiting for a response from a capability.
+      this.capabilityWaitingResponsesCounter++;
+	  this.trySendMessage(cmd);
+    }
+  },
+
+
+
 
     /**
    * Handles a response from a Protocol 2000 matrix.
@@ -316,57 +347,36 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
    
   
   requestVideoStatus(output) {
-	  if (output > 0) {
-		  let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, output,1);
-		  this.trySendMessage(cmd);
-/*		  try {
-            this.socket.send(cmd);
-          } catch (error) {
-            this.log("error", `${error}`);
-          }
-*/	  }
-	  else {
-		  for (let i = 1; i <= this.config.outputCount; i++) {
-			let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, i,1);
-		    this.trySendMessage(cmd);
-/*	  	      try {
-                this.socket.send(cmd);
-                } catch (error) {
-              this.log("error", `${error}`);
-            }
-*/	        }
-	  }
+	if (output > 0) {
+      let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, output,1);
+      this.trySendMessage(cmd);
+	}
+    else {
+      for (let i = 1; i <= this.config.outputCount; i++) {
+        let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, i,1);
+        this.trySendMessage(cmd);
+      }
+    }
   },
   
   
   
   requestAudioStatus(output) {
-	  if (output > 0) {
-		  let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, output,1);
-		  this.trySendMessage(cmd);
-/*		  try {
-            this.socket.send(cmd);
-          } catch (error) {
-            this.log("error", `${error}`);
-          }
-*/	  }
-	  else {
-		  for (let i = 1; i <= this.config.outputCount; i++) {
-			let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, i,1);
-		    this.trySendMessage(cmd);
-/*	  	      try {
-                this.socket.send(cmd);
-                } catch (error) {
-              this.log("error", `${error}`);
-            }
-*/	        }
-	  }
+    if (output > 0) {
+      let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, output,1);
+      this.trySendMessage(cmd);
+    }
+    else {
+      for (let i = 1; i <= this.config.outputCount; i++) {
+        let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, i,1);
+        this.trySendMessage(cmd);
+      }
+    }
   },
   
   
 
   // Buffers message, then sends it if not waiting for a response.
-
   trySendMessage(cmd) {
     if (this.outBuffer.push(cmd) == 1) {
       this.sendMessage();
@@ -384,8 +394,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
   },
 
 
-  // Timeout function to handle long waiting state
-  
+  // Timeout function to handle long waiting state 
   lateResponse() {
 	if (this.outBuffer?.length > 0) {
 	  if (this.attempts < this.MAX_ATTEMPTS) {
@@ -400,7 +409,6 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
 
  
   // Sends next message from buffer
-
   sendMessage() {
     let cmd = this.outBuffer[0];
     if (cmd) {

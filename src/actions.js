@@ -1,8 +1,5 @@
-const simpleEval = require('simple-eval');
-
 module.exports = {
-  
-  
+	  
     /**
    * Creates the actions for this module.
    */
@@ -31,6 +28,114 @@ module.exports = {
 
     this.setActionDefinitions({
 		
+		
+      selectOutput: {
+        name: "Select output",
+		options : [
+		  {
+            type: "dropdown",
+            name: "Output #",
+            id: "output",
+            default: "0",
+            choices: outputOpts,
+          },
+        ],
+        callback: async (event) => {
+		  this.selectedDestination = event.options.output;
+		  this.checkVariables ('selection');
+		}
+	  },
+		
+	  selectOutputDynamic: {
+        name: "Select output (dynamic)",
+		options : [
+		  {
+            type: "textinput",
+            useVariables: {local : true},
+            name: "Output #",
+            id: "output",
+            default: "0",
+          },
+        ],
+        callback: async (event, context) => {console.log('output selection');
+		  const output = this.simpleEval(await context.parseVariablesInString(event.options.output));
+		  this.selectedDestination = output;
+		  this.checkVariables ('selection');
+		}
+	  },
+				
+      selectVideoInput: {
+        name: "Select video input",
+		options : [
+		  {
+            type: "dropdown",
+            name: "input #",
+            id: "input",
+            default: "0",
+            choices: inputOpts,
+          },
+        ],
+        callback: async (event) => {
+		  this.selectedVideoSource = event.options.input;
+		  this.checkVariables ('selection');
+		}
+	  },
+		
+	  selectVideoInputDynamic: {
+        name: "Select video input (dynamic)",
+		options : [
+		  {
+            type: "textinput",
+            useVariables: {local : true},
+            name: "input #",
+            id: "input",
+            default: "0",
+          },
+        ],
+        callback: async (event, context) => {
+		  const input = this.simpleEval(await context.parseVariablesInString(event.options.input));
+		  this.selectedVideoSource = input;
+		  this.checkVariables ('selection');
+		}
+	  },
+			
+		
+      selectAudioInput: {
+        name: "Select audio input",
+		options : [
+		  {
+            type: "dropdown",
+            name: "input #",
+            id: "input",
+            default: "0",
+            choices: inputOpts,
+          },
+        ],
+        callback: async (event) => {
+		  this.selectedAudioSource = event.options.input;
+		  this.checkVariables ('selection');
+		}
+	  },
+		
+	  selectAudioInputDynamic: {
+        name: "Select audio input (dynamic)",
+		options : [
+		  {
+            type: "textinput",
+            useVariables: {local : true},
+            name: "input #",
+            id: "input",
+            default: "0",
+          },
+        ],
+        callback: async (event, context) => {
+		  const input = this.simpleEval(await context.parseVariablesInString(event.options.input));
+		  this.selectedAudioSource = input;
+		  this.checkVariables ('selection');
+		}
+	  },
+							
+		
       requestAudio: {
         name: "Request Audio Source routed to destination",
         options: [
@@ -44,7 +149,7 @@ module.exports = {
         ],
         callback: async (event) => {
 		  this.requestAudioStatus(event.options.output);
-          this.log("debug", `Kramer command: ${cmd}`);
+          //this.log("debug", `Kramer command: ${cmd}`);
         },
       },
 	
@@ -60,9 +165,7 @@ module.exports = {
           },
         ],
         callback: async (event, context) => {
-          const output = simpleEval(await
-            context.parseVariablesInString(event.options.output)
-          );
+          const output = this.simpleEval(await context.parseVariablesInString(event.options.output));
           this.requestAudioStatus(output);
         },
       },
@@ -88,15 +191,14 @@ module.exports = {
         options: [
           {
             type: "textinput",
-            useVariables: true,
+            useVariables: {local : true},
             name: "Output #",
             id: "output",
             default: "0",
           },
         ],
         callback: async (event, context) => {
-          const output = parseInt(
-            context.parseVariablesInString(event.options.output)
+          const output = this.simpleEval(await context.parseVariablesInString(event.options.output)
           );
           this.requestVideoStatus(output);
         },
@@ -127,13 +229,14 @@ module.exports = {
             event.options.input,
             event.options.output
           );
-          this.log("debug", `Kramer command: ${cmd}`);
-          try {
+         // this.log("debug", `Kramer command: ${cmd}`);
+		 this.trySendMessage(cmd);
+/*          try {
             this.socket.send(cmd);
           } catch (error) {
             this.log("error", `${error}`);
           }
-        },
+*/        },
       },
       switchVideo: {
         name: "Switch Video",
@@ -159,46 +262,45 @@ module.exports = {
             event.options.input,
             event.options.output
           );
-
+		  this.trySendMessage(cmd);
+/*
           try {
             this.socket.send(cmd);
           } catch (error) {
             this.log("error", `${error}`);
           }
-        },
+*/        },
       },
+	  
       switchVideoDynamic: {
         name: "Switch Video (Dynamic)",
         options: [
           {
             type: "textinput",
-            useVariables: true,
+            useVariables: {local : true},
             name: "Input #",
             id: "input",
             default: "0",
           },
           {
             type: "textinput",
-            useVariables: true,
+            useVariables: {local : true},
             name: "Output #",
             id: "output",
             default: "0",
           },
         ],
         callback: async (event, context) => {
-          const input = parseInt(
-            context.parseVariablesInString(event.options.input)
-          );
-          const output = parseInt(
-            context.parseVariablesInString(event.options.output)
-          );
+		  const input = this.simpleEval(await context.parseVariablesInString(event.options.input));
+		  const output = this.simpleEval(await context.parseVariablesInString(event.options.output));
           let cmd = this.makeCommand(this.SWITCH_VIDEO, input, output);
-          try {
+		  this.trySendMessage(cmd);
+/*          try {
             this.socket.send(cmd);
           } catch (error) {
             this.log("error", `${error}`);
           }
-        },
+*/        },
       },
 
       switchAudioDynamic: {
@@ -206,7 +308,7 @@ module.exports = {
         options: [
           {
             type: "textinput",
-            useVariables: true,
+            useVariables: {local : true},
             name: "Input #",
             id: "input",
             default: "0",
@@ -214,7 +316,7 @@ module.exports = {
           },
           {
             type: "textinput",
-            useVariables: true,
+            useVariables: {local : true},
             name: "Output #",
             id: "output",
             default: "0",
@@ -222,20 +324,19 @@ module.exports = {
           },
         ],
         callback: async (event, context) => {
-          const input = parseInt(
-            context.parseVariablesInString(event.options.input)
-          );
-          const output = parseInt(
-            context.parseVariablesInString(event.options.output)
-          );
+		  const input = this.simpleEval(await context.parseVariablesInString(event.options.input));
+		  const output = this.simpleEval(await context.parseVariablesInString(event.options.output));
+
           let cmd = this.makeCommand(this.SWITCH_AUDIO, input, output);
-          try {
+		  this.trySendMessage(cmd);
+/*          try {
             this.socket.send(cmd);
           } catch (error) {
             this.log("error", `${error}`);
           }
-        },
+*/        },
       },
+
       recall_setup: {
         name: "Recall Preset",
         options: [
@@ -249,13 +350,15 @@ module.exports = {
         ],
         callback: async (event) => {
           let cmd = this.makeCommand(this.RECALL_SETUP, event.options.setup, 0);
-          try {
+		  this.trySendMessage(cmd);
+/*          try {
             this.socket.send(cmd);
           } catch (error) {
             this.log("error", `${error}`);
           }
-        },
+*/        },
       },
+
       store_setup: {
         name: "Store Preset",
         options: [
@@ -273,13 +376,15 @@ module.exports = {
             event.options.setup,
             0 /* STORE */
           );
-          try {
+		  this.trySendMessage(cmd);
+/*          try {
             this.socket.send(cmd);
           } catch (error) {
             this.log("error", `${error}`);
           }
-        },
+*/        },
       },
+
       delete_setup: {
         name: "Delete Preset",
         options: [
@@ -299,13 +404,15 @@ module.exports = {
             event.options.setup,
             1 /* DELETE */
           );
-          try {
+		  this.trySendMessage(cmd);
+/*          try {
             this.socket.send(cmd);
           } catch (error) {
             this.log("error", `${error}`);
           }
-        },
+*/        },
       },
+
       front_panel: {
         name: "Front Panel Lock",
         options: [
@@ -315,21 +422,80 @@ module.exports = {
             id: "status",
             default: "0",
             choices: [
-              { id: "0", name: "Unlock" },
-              { id: "1", name: "Lock" },
+              { id: "0", label: "Unlock" },
+              { id: "1", label: "Lock" },
             ],
           },
         ],
         callback: async (event) => {
           let cmd = this.makeCommand(this.FRONT_PANEL, event.options.status, 0);
-          try {
-            this.socket.send(cmd);
-          } catch (error) {
-            this.log("error", `${error}`);
-          }
+		  this.trySendMessage(cmd);
         },
       },
-    });
+	  
+	  take: {
+        name: "Take",
+		options: [
+		  {
+		    type : "dropdown",
+		    name: "Audio , Video or Both",
+		    id: "type",
+		    default: "0",
+		    choices: [
+		      {id: "0", label: "Audio & Video" },
+			  {id: this.SWITCH_VIDEO, label: "Video"},
+			  {id: this.SWITCH_AUDIO, label: "Audio" }
+            ]
+		  }
+	    ],
+	    callback: async (event) => {
+		  if (this.selectedDestination == "") {
+		    return;
+		  }
+		  switch (event.options.type) {
+            case "0" : {
+			  if (this.selectedAudioSource > 0) {
+		        let cmd = this.makeCommand(this.SWITCH_AUDIO, this.selectedAudioSource, this.selectedDestination);
+		        this.selectedAudioSource = "";
+		        this.trySendMessage(cmd);
+			  }
+			}
+			case this.SWITCH_VIDEO : {
+			  if (this.selectedVideoSource > 0) {
+			    let cmd = this.makeCommand(this.SWITCH_VIDEO, this.selectedVideoSource, this.selectedDestination);
+		        this.selectedVideoSource = "";
+		        this.selectedDestination = "";
+		        this.trySendMessage(cmd);
+			    }
+			  break;
+			}
+			case this.SWITCH_AUDIO : {
+			  if (this.selectedAudioSource > 0) {
+		        let cmd = this.makeCommand(this.SWITCH_AUDIO, this.selectedAudioSource, this.selectedDestination);
+		        this.selectedAudioSource = "";
+		        this.selectedDestination = "";
+                this.trySendMessage(cmd);
+			  }
+			}
+		  }
+		  this.checkVariables("selection");
+		}
+    },
+	
+	  clear: {
+        name : "Clear",
+		options: [],
+	    callback: async (event) => {
+		  this.selectedAudioSource = "";
+		  this.selectedVideoSource = "";
+		  this.selectedDestination = "";
+		  this.checkVariables("selection");
+		}
+    }
+	
+	
+	
+  });
   }
 
 
