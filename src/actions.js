@@ -1,4 +1,4 @@
-import simpleEval from 'simple-eval';
+const simpleEval = require('simple-eval');
 
 module.exports = {
   
