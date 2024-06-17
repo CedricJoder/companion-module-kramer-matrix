@@ -32,7 +32,7 @@ class KramerInstance extends InstanceBase {
 				
   }
 
-  simpleEval = require('simple-eval').default;
+//  simpleEval = require('simple-eval').default;
 
   //  Define the connection protocols this module will use:
   CONNECT_TCP = "TCP";

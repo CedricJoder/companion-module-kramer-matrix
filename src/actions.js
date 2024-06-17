@@ -60,7 +60,7 @@ module.exports = {
           },
         ],
         callback: async (event, context) => {console.log('output selection');
-		  const output = this.simpleEval(await context.parseVariablesInString(event.options.output));
+		  const output = simpleEval(await context.parseVariablesInString(event.options.output));
 		  this.selectedDestination = output;
 		  this.checkVariables ('selection');
 		}
@@ -95,7 +95,7 @@ module.exports = {
           },
         ],
         callback: async (event, context) => {
-		  const input = this.simpleEval(await context.parseVariablesInString(event.options.input));
+		  const input = simpleEval(await context.parseVariablesInString(event.options.input));
 		  this.selectedVideoSource = input;
 		  this.checkVariables ('selection');
 		}
@@ -131,7 +131,7 @@ module.exports = {
           },
         ],
         callback: async (event, context) => {
-		  const input = this.simpleEval(await context.parseVariablesInString(event.options.input));
+		  const input = simpleEval(await context.parseVariablesInString(event.options.input));
 		  this.selectedAudioSource = input;
 		  this.checkVariables ('selection');
 		}
@@ -167,7 +167,7 @@ module.exports = {
           },
         ],
         callback: async (event, context) => {
-          const output = this.simpleEval(await context.parseVariablesInString(event.options.output));
+          const output = simpleEval(await context.parseVariablesInString(event.options.output));
           this.requestAudioStatus(output);
         },
       },
@@ -200,7 +200,7 @@ module.exports = {
           },
         ],
         callback: async (event, context) => {
-          const output = this.simpleEval(await context.parseVariablesInString(event.options.output)
+          const output = simpleEval(await context.parseVariablesInString(event.options.output)
           );
           this.requestVideoStatus(output);
         },
@@ -265,13 +265,7 @@ module.exports = {
             event.options.output
           );
 		  this.trySendMessage(cmd);
-/*
-          try {
-            this.socket.send(cmd);
-          } catch (error) {
-            this.log("error", `${error}`);
-          }
-*/        },
+        },
       },
 	  
       switchVideoDynamic: {
@@ -293,16 +287,11 @@ module.exports = {
           },
         ],
         callback: async (event, context) => {
-		  const input = this.simpleEval(await context.parseVariablesInString(event.options.input));
-		  const output = this.simpleEval(await context.parseVariablesInString(event.options.output));
+		  const input = simpleEval(await context.parseVariablesInString(event.options.input));
+		  const output = simpleEval(await context.parseVariablesInString(event.options.output));
           let cmd = this.makeCommand(this.SWITCH_VIDEO, input, output);
 		  this.trySendMessage(cmd);
-/*          try {
-            this.socket.send(cmd);
-          } catch (error) {
-            this.log("error", `${error}`);
-          }
-*/        },
+        },
       },
 
       switchAudioDynamic: {
@@ -326,17 +315,12 @@ module.exports = {
           },
         ],
         callback: async (event, context) => {
-		  const input = this.simpleEval(await context.parseVariablesInString(event.options.input));
-		  const output = this.simpleEval(await context.parseVariablesInString(event.options.output));
+		  const input = simpleEval(await context.parseVariablesInString(event.options.input));
+		  const output = simpleEval(await context.parseVariablesInString(event.options.output));
 
           let cmd = this.makeCommand(this.SWITCH_AUDIO, input, output);
 		  this.trySendMessage(cmd);
-/*          try {
-            this.socket.send(cmd);
-          } catch (error) {
-            this.log("error", `${error}`);
-          }
-*/        },
+        },
       },
 
       recall_setup: {
@@ -353,12 +337,7 @@ module.exports = {
         callback: async (event) => {
           let cmd = this.makeCommand(this.RECALL_SETUP, event.options.setup, 0);
 		  this.trySendMessage(cmd);
-/*          try {
-            this.socket.send(cmd);
-          } catch (error) {
-            this.log("error", `${error}`);
-          }
-*/        },
+        },
       },
 
       store_setup: {
