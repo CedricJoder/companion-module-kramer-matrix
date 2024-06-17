@@ -1,3 +1,5 @@
+import simpleEval from 'simple-eval';
+
 module.exports = {
   
   
@@ -51,14 +53,14 @@ module.exports = {
         options: [
           {
             type: "textinput",
-            useVariables: true,
+            useVariables: {local : true},
             name: "Output #",
             id: "output",
             default: "0",
           },
         ],
         callback: async (event, context) => {
-          const output = parseInt(
+          const output = simpleEval(await
             context.parseVariablesInString(event.options.output)
           );
           this.requestAudioStatus(output);
@@ -78,6 +80,25 @@ module.exports = {
         ],
         callback: async (event) => {
 		  this.requestVideoStatus(event.options.output);
+        },
+      },
+	  	
+      requestVideoDynamic: {
+        name: "Request Video Source routed to destination (dynamic)",
+        options: [
+          {
+            type: "textinput",
+            useVariables: true,
+            name: "Output #",
+            id: "output",
+            default: "0",
+          },
+        ],
+        callback: async (event, context) => {
+          const output = parseInt(
+            context.parseVariablesInString(event.options.output)
+          );
+          this.requestVideoStatus(output);
         },
       },
 	  
