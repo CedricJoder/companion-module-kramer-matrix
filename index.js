@@ -14,6 +14,8 @@ const variables = require('./src/variables');
 const configFields = require('./src/configFields');
 const feedbacks = require('./src/feedbacks');
 
+const simpleEval = require('simple-eval').default;
+
 class KramerInstance extends InstanceBase {
   constructor(internal) {
     super(internal);

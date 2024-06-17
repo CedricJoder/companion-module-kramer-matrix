@@ -1,3 +1,5 @@
+const simpleEval = require('simple-eval').default;
+
 module.exports = {
 	  
     /**
