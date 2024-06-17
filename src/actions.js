@@ -496,6 +496,9 @@ module.exports = {
 	
 	
   });
+
+  this.inputOpts = inputOpts;
+  this.outputOpts =outputOpts;
   }
 
 

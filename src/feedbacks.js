@@ -1,3 +1,8 @@
+const {
+  combineRgb
+} = require("@companion-module/base");
+
+
 module.exports = {
 	  
     /**
@@ -7,9 +12,7 @@ module.exports = {
 	  
 	this.log ('debug', 'Initializing variables');
     let feedbacks = {};
-	this.log('debug', 'feedbacks 0');
-	
-    feedbacks['input_bg'] = {
+   feedbacks['input_bg'] = {
         type: 'boolean',
         name: 'Change background color by destination',
         description: 'If the input specified is in use by the output specified, change background color of the bank',
@@ -22,21 +25,22 @@ module.exports = {
                 type: 'dropdown',
                 label: 'Input',
                 id: 'input',
-                default: 0,
-                choices: inputOpts,
+                default: "0",
+                choices: this.inputOpts
             },
             {
                 type: 'dropdown',
                 label: 'Output',
                 id: 'output',
-                default: 0,
-                choices: outputOpts,
+                default: "0",
+                choices: this.outputOpts
             },
         ],
         callback: (feedback) => {
-            return (this.videoRouting[output] == input);
+           // return (this.videoRouting[feedback.options.output] == feedback.options.input);
         },
     };
+
 	this.log('debug', 'feedbacks');
 	this.setFeedbackDefinitions(feedbacks);
 	
