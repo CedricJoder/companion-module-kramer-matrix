@@ -11,6 +11,7 @@ module.exports = {
   REQUEST_AUDIO_STATUS : 6,
   FRONT_PANEL : 30,
   DEFINE_MACHINE : 62,
+  ERROR : 80,
 
   CAPS_VIDEO_INPUTS : 1,
   CAPS_VIDEO_OUTPUTS : 2,
@@ -34,12 +35,13 @@ module.exports = {
   
   
   // Internal variables reflecting the state of the matrix
+  outputs : [],
+  inputs : [],
   videoRouting : [],
   audioRouting : [],
   reverseVideoRouting : [[]],
   reverseAudioRouting : [[]],
-  selectedVideoSource : '',
-  selectedAudioSource : '',
+  selectedSource : '',
   selectedDestination : '',
 
 
@@ -100,7 +102,7 @@ module.exports = {
             this.config.inputCount = count;
             this.config.detectedInputs = count.toString();
             break;
-
+            
           case this.CAPS_VIDEO_OUTPUTS:
             this.log("info", `Detected: ${count} outputs.`);
             this.config.outputCount = count;
@@ -112,7 +114,10 @@ module.exports = {
             this.config.setupsCount = count;
             this.config.detectedSetups = count.toString();
             break;
+            
         }
+        
+        case this.ERROR :
 
         // Decrement the counter now that it responded. Save the config
         //  if all the requests responded.
@@ -126,21 +131,26 @@ module.exports = {
 	    output = this.outBuffer[0][2] ^ this.MSB;
 		input = data[2] ^ this.MSB;
       case this.SWITCH_VIDEO : {
-        let formerInput = this.videoRouting[output];
-        this.videoRouting[output] = input;
+        let formerInput = this.outputs[output]?.videoSource;
+        //this.videoRouting[output];
+        this.outputs[output]?.videoSource = input;
+        //this.videoRouting[output] = input;
 this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
-		if (this.reverseVideoRouting[formerInput] && this.reverseVideoRouting[formerInput].length > 0) {
-		  let index = this.reverseVideoRouting[formerInput].indexOf(output);
+	/*	if (this.reverseVideoRouting[formerInput] && this.reverseVideoRouting[formerInput].length > 0) {
+		  //let index = this.reverseVideoRouting[formerInput].indexOf(output);
+	*/	  let index = this.inputs[formerInput]?.videoDestinations?.indexOf(output);
 		  if (index > -1) {
-            this.reverseVideoRouting[formerInput].splice(index, 1);
+            this.inputs[formerInput]?.videoDestinations?.splice(index, 1);
           }
-		} 
+//		} 
 		else {
-		this.log('debug', 'routing empty');  
+		this.log('debug', 'former routing not found');  
 		}
-		if (this.reverseVideoRouting[input]) {
+		this.inputs[input]?.videoDestinations.push(output);
+	/*	if (this.reverseVideoRouting[input]) {
           this.reverseVideoRouting[input].push(output);
 		}
+*/
         this.checkVariables('routing', 'video', output);
         break;
       }
@@ -148,13 +158,13 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
 	    output = this.outBuffer[0][2] ^ this.MSB;
 		input = data[2] ^ this.MSB;
       case this.SWITCH_AUDIO : {
-        let formerInput = this.audioRouting[output];
-        this.audioRouting[output] = input;
-        let index = this.reverseAudioRouting[formerInput].indexOf(output);
+        let formerInput = this.outputs[output]?.audioSource;
+        this.outputs[output]?.audioSource = input;
+        let index = this.inputs[formerInput]?.audioDestinations.indexOf(output);
         if (index > -1) {
-          this.reverseAudioRouting[formerInput].splice(index, 1);
+          this.inputs[formerInput]?.audioDestinations.splice(index, 1);
         }
-        this.reverseAudioRouting[input].push(output);
+        this.inputq[input].audioDestinations.push(output);
         this.checkVariables('routing', 'audio', output);
         break;
       }

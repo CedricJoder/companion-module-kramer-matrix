@@ -127,6 +127,51 @@ module.exports = {
         }
 
 
+        feedbacks['selected_output_source'] = {
+                type: 'boolean',
+                name: 'Change background color by route to selected destination',
+                description: 'If the input specified is in use by the selected output, change background color of the bank',
+                defaultStyle: {
+                        color: combineRgb(0, 0, 0),
+                        bgcolor: combineRgb(255, 255, 255),
+                },
+                options: [
+                        {
+                                type: 'dropdown',
+                                label: 'Input',
+                                id: 'input',
+                                default: 0,
+                                choices: inputOpts,
+                        },
+                ],
+                callback: (feedback) => {
+                        return this.videoRouting[this.selectedDestination] == feedback.options.input;
+                },
+        }
+
+        feedbacks['selected_source_dyn'] = {
+                type: 'boolean',
+                name: 'Change background color by route to selected destination (dynamic)',
+                description: 'If the input specified is in use by the selected output, change background color of the bank',
+                defaultStyle: {
+                        color: combineRgb(0, 0, 0),
+                        bgcolor: combineRgb(255, 255, 255),
+                },
+                options: [
+                        {
+                                type: 'textinput',
+                                label: 'Input',
+                                id: 'input',
+                                default: '',
+                                useVariables: {local: true}
+                        },
+                ],
+                callback: async function (feedback, context) {
+                        let inputNum = await context.parseVariablesInString(feedback.options.input);
+                        let inputId = simpleEval(inputNum);
+                        return this.videoRouting[this.selectedDestination] == inputId
+                },
+        }
 
         feedbacks['selected_source'] = {
                 type: 'boolean',

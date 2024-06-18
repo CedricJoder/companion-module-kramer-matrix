@@ -184,16 +184,25 @@ class KramerInstance extends InstanceBase {
    *Initializes the internal routing matrix
    */
   initRouting() {
-    let inputCount = Math.min(64, Math.max(1, this.config.inputCount));
-    let outputCount = Math.min(64, Math.max(1, this.config.outputCount));
-    let setupsCount = Math.min(64, Math.max(1, this.config.setupsCount));
+    let inputCount = Math.min(64, this.config.inputCount);
+    let outputCount = Math.min(64, this.config.outputCount);
+    let setupsCount = Math.min(64, this.config.setupsCount);
 
 	this.log('debug', 'Initializing internal routing matrix');
-	for (let i = 0; i<= inputCount; i++) {
-      this.reverseVideoRouting[i] = [];
-      this.reverseAudioRouting[i] = [];
-    }
 	
+	this.inputs = [{ id: "0", label: "Off", videoDestinations : [], audioDestinations : [] }]; 
+	this.outputs = [{ id: "0", label: 'All', videoSource : '', audioSource : "" }];
+  this.setups = [];
+
+	for (let i = 0; i<= inputCount; i++) {
+    this.inputs.push({id:'i', label : 'Input ${i}', videoDestinations : [], audioDestinations : []});
+    }
+  for (let i = 0; i<= outputCount; i++) {
+    this.outputs.push({id:'i', label : 'Output ${i}', videoSource : '', audioSource : ''});
+    }
+  for (let i = 1; i <= setupsCount; i++) {
+    this.setups.push({ id: i, label: `Preset ${i}` });
+    }
   };
 
 

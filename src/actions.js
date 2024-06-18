@@ -7,13 +7,13 @@ module.exports = {
    */
   initActions() {
 	this.log('debug', 'Initializing actions');
-    let inputOpts = [{ id: "0", label: "Off" }];
+/*    let inputOpts = [{ id: "0", label: "Off" }];
     let outputOpts = [{ id: "0", label: "All" }];
     let setups = [];
 
     // Set some sane minimum/maximum values on the capabilities
-    let inputCount = Math.min(64, Math.max(1, this.config.inputCount));
-    let outputCount = Math.min(64, Math.max(1, this.config.outputCount));
+    let inputCount = Math.min(64, this.config.inputCount);
+    let outputCount = Math.min(64, this.config.outputCount);
     let setupsCount = Math.min(64,this.config.setupsCount);
 
     // Build the inputs, outputs, and setups
@@ -26,7 +26,10 @@ module.exports = {
     for (let i = 1; i <= setupsCount; i++) {
       setups.push({ id: i, label: `Preset ${i}` });
     }
-
+*/
+    let inputOpts = this.inputs.map((input) => Object({id : input?.id, label : input?.label}));
+    let outputOpts = this.outputs;
+    let setups = this.setups;
 
     this.setActionDefinitions({
 		
