@@ -4,8 +4,7 @@ const {
   Regex,
   runEntrypoint,
   UDPHelper,
-  TCPHelper,
-  combineRgb
+  TCPHelper
 } = require("@companion-module/base");
 
 const actions = require('./src/actions');
@@ -52,7 +51,6 @@ class KramerInstance extends InstanceBase {
   // The number of capabilities we're waiting responses for before saving the config.
   capabilityWaitingResponsesCounter = 0;
   
-
 
   // time limit for waiting for response from device
   RESPONSE_TIMEOUT = 100;
@@ -153,16 +151,16 @@ class KramerInstance extends InstanceBase {
           this.detectCapabilities(detectCapabilities);
 		}
         this.initRouting();
-	this.initActions();
-	this.initFeedbacks();
-        this.initVariables();
-	this.requestVideoStatus();
-	this.requestAudioStatus();
+//	    this.initActions();
+//        this.initVariables();
+//	    this.initFeedbacks();
+	    this.requestVideoStatus();
+	    this.requestAudioStatus();
       },() => {
         this.initRouting();
-	this.initActions();
-	this.initFeedbacks();
-        this.initVariables();
+//	    this.initActions();
+//        this.initVariables();
+//	    this.initFeedbacks();
       }).catch((_) => {
           // Error while connecting. The error message is already logged, but Node requires
           //  the rejected promise to be handled.
@@ -172,9 +170,9 @@ class KramerInstance extends InstanceBase {
     else {   
       // Rebuild the actions to reflect the capabilities we have.
       this.initRouting();
-      this.initActions();
-      this.initFeedbacks();
-      this.initVariables();
+//      this.initActions();
+//      this.initVariables();
+//      this.initFeedbacks();
     }
 
   }
@@ -192,18 +190,21 @@ class KramerInstance extends InstanceBase {
 	
 	this.inputs = [{ id: "0", label: "Off", videoDestinations : [], audioDestinations : [] }]; 
 	this.outputs = [{ id: "0", label: 'All', videoSource : '', audioSource : "" }];
-  this.setups = [];
+    this.setups = [];
 
-	for (let i = 0; i<= inputCount; i++) {
-    this.inputs.push({id:'i', label : 'Input ${i}', videoDestinations : [], audioDestinations : []});
+	for (let i = 1; i<= inputCount; i++) {
+      this.inputs.push({id: i, label : 'Input '+ i, videoDestinations : [], audioDestinations : []});
     }
-  for (let i = 0; i<= outputCount; i++) {
-    this.outputs.push({id:'i', label : 'Output ${i}', videoSource : '', audioSource : ''});
+    for (let i = 1; i<= outputCount; i++) {
+      this.outputs.push({id: i, label : 'Output '+ i, videoSource : '', audioSource : ''});
     }
-  for (let i = 1; i <= setupsCount; i++) {
-    this.setups.push({ id: i, label: `Preset ${i}` });
+    for (let i = 1; i <= setupsCount; i++) {
+    this.setups.push({ id: i, label: `Preset ` + i});
     }
-  };
+	
+	this.getAssignations();
+  }
+	
 
 
   /**

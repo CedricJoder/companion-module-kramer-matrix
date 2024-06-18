@@ -27,7 +27,8 @@ module.exports = {
       setups.push({ id: i, label: `Preset ${i}` });
     }
 */
-    let inputOpts = this.inputs.map((input) => Object({id : input?.id, label : input?.label}));
+
+    let inputOpts = this.inputs;
     let outputOpts = this.outputs;
     let setups = this.setups;
 
@@ -69,8 +70,8 @@ module.exports = {
 		}
 	  },
 				
-      selectVideoInput: {
-        name: "Select video input",
+      selectInput: {
+        name: "Select input",
 		options : [
 		  {
             type: "dropdown",
@@ -81,13 +82,13 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-		  this.selectedVideoSource = event.options.input;
+		  this.selectedSource = event.options.input;
 		  this.checkVariables ('selection');
 		}
 	  },
 		
-	  selectVideoInputDynamic: {
-        name: "Select video input (dynamic)",
+	  selectInputDynamic: {
+        name: "Select input (dynamic)",
 		options : [
 		  {
             type: "textinput",
@@ -99,47 +100,12 @@ module.exports = {
         ],
         callback: async (event, context) => {
 		  const input = simpleEval(await context.parseVariablesInString(event.options.input));
-		  this.selectedVideoSource = input;
+		  this.selectedSource = input;
 		  this.checkVariables ('selection');
 		}
 	  },
 			
-		
-      selectAudioInput: {
-        name: "Select audio input",
-		options : [
-		  {
-            type: "dropdown",
-            name: "input #",
-            id: "input",
-            default: "0",
-            choices: inputOpts,
-          },
-        ],
-        callback: async (event) => {
-		  this.selectedAudioSource = event.options.input;
-		  this.checkVariables ('selection');
-		}
-	  },
-		
-	  selectAudioInputDynamic: {
-        name: "Select audio input (dynamic)",
-		options : [
-		  {
-            type: "textinput",
-            useVariables: {local : true},
-            name: "input #",
-            id: "input",
-            default: "0",
-          },
-        ],
-        callback: async (event, context) => {
-		  const input = simpleEval(await context.parseVariablesInString(event.options.input));
-		  this.selectedAudioSource = input;
-		  this.checkVariables ('selection');
-		}
-	  },
-							
+			
 		
       requestAudio: {
         name: "Request Audio Source routed to destination",
@@ -243,6 +209,7 @@ module.exports = {
           }
 */        },
       },
+	  
       switchVideo: {
         name: "Switch Video",
         options: [
@@ -296,6 +263,68 @@ module.exports = {
 		  this.trySendMessage(cmd);
         },
       },
+
+	  
+      switchAllInputs: {
+        name: "Replace input A by input B",
+        options: [
+          {
+            type: "dropdown",
+            name: "Input A #",
+            id: "inputA",
+            default: "0",
+            choices: inputOpts,
+          },
+          {
+            type: "dropdown",
+            name: "Input B #",
+            id: "inputB",
+            default: "0",
+            choices: inputOpts,
+          },
+        ],
+        callback: async (event) => {
+		  let outputsList = this.inputs[inputA]?.map((x) => x);
+		  outputList.forEach((output) => {
+            let cmd = this.makeCommand(
+              this.SWITCH_VIDEO,
+              inputB,
+              output
+            );
+            this.trySendMessage(cmd);
+		  });
+        },
+      },
+	  
+      switchVideoDynamic: {
+        name: "Replace input A by input B (Dynamic)",
+        options: [
+          {
+            type: "textinput",
+            useVariables: {local : true},
+            name: "Input A #",
+            id: "inputA",
+            default: "0",
+          },
+          {
+            type: "textinput",
+            useVariables: {local : true},
+            name: "Input B #",
+            id: "inputB",
+            default: "0",
+          },
+        ],
+        callback: async (event, context) => {
+		  const inputA = simpleEval(await context.parseVariablesInString(event.options.inputA));
+		  const inputB = simpleEval(await context.parseVariablesInString(event.options.inputB));
+		  this.inputs[inputA]?.forEach((output) => {
+            let cmd = this.makeCommand(this.SWITCH_VIDEO, inputB, output);
+            this.trySendMessage(cmd);
+		  })
+        },
+      },
+
+
 
       switchAudioDynamic: {
         name: "Switch Audio (Dynamic)",
@@ -438,25 +467,25 @@ module.exports = {
 		  }
 		  switch (event.options.type) {
             case "0" : {
-			  if (this.selectedAudioSource > 0) {
-		        let cmd = this.makeCommand(this.SWITCH_AUDIO, this.selectedAudioSource, this.selectedDestination);
-		        this.selectedAudioSource = "";
+			  if (this.selectedSource > 0) {
+		        let cmd = this.makeCommand(this.SWITCH_AUDIO, this.selectedSource, this.selectedDestination);
+		        this.selectedSource = "";
 		        this.trySendMessage(cmd);
 			  }
 			}
 			case this.SWITCH_VIDEO : {
-			  if (this.selectedVideoSource > 0) {
-			    let cmd = this.makeCommand(this.SWITCH_VIDEO, this.selectedVideoSource, this.selectedDestination);
-		        this.selectedVideoSource = "";
+			  if (this.selectedSource > 0) {
+			    let cmd = this.makeCommand(this.SWITCH_VIDEO, this.selectedSource, this.selectedDestination);
+		        this.selectedSource = "";
 		        this.selectedDestination = "";
 		        this.trySendMessage(cmd);
 			    }
 			  break;
 			}
 			case this.SWITCH_AUDIO : {
-			  if (this.selectedAudioSource > 0) {
-		        let cmd = this.makeCommand(this.SWITCH_AUDIO, this.selectedAudioSource, this.selectedDestination);
-		        this.selectedAudioSource = "";
+			  if (this.selectedSource > 0) {
+		        let cmd = this.makeCommand(this.SWITCH_AUDIO, this.selectedSource, this.selectedDestination);
+		        this.selectedSource = "";
 		        this.selectedDestination = "";
                 this.trySendMessage(cmd);
 			  }
@@ -470,8 +499,8 @@ module.exports = {
         name : "Clear",
 		options: [],
 	    callback: async (event) => {
-		  this.selectedAudioSource = "";
-		  this.selectedVideoSource = "";
+		  this.selectedSource = "";
+		  this.selectedSource = "";
 		  this.selectedDestination = "";
 		  this.checkVariables("selection");
 		}
@@ -480,9 +509,6 @@ module.exports = {
 	
 	
   });
-
-  this.inputOpts = inputOpts;
-  this.outputOpts =outputOpts;
   }
 
 

@@ -1,3 +1,7 @@
+const {
+  Regex,
+} = require("@companion-module/base");
+
 
 module.exports = {
 
@@ -77,7 +81,7 @@ module.exports = {
 	isVisible : (options) => { return !options.detectInputs;},
         default: 0,
         width: 2,
-//        regex: "/^\\d*$/",
+
       },
       {
         type: "static-text",
@@ -102,7 +106,6 @@ module.exports = {
         isVisible : (options) => { return !options.detectOutputs;},
         default: 0,
         width: 2,
- //       regex: "/^\\d*$/",
       },
       {
         type: "static-text",
@@ -127,7 +130,6 @@ module.exports = {
         label: "Setups count",
         default: 0,
         width: 2,
- //       regex: "/^\\d*$/",
       },
       {
         type: "static-text",
@@ -137,6 +139,13 @@ module.exports = {
         label: "Setups\ncount",
         value: "0",
       },
+	  
+	  {
+		  type: "textinput",
+		  id: "assignations",
+	  label: "Assignation file"
+	  },		  
+	  
       {
         type: "static-text",
         id: "info_customize",

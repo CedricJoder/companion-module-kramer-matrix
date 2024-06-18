@@ -1,3 +1,8 @@
+const fs = require('fs');
+const readline = require('readline');
+
+
+
 module.exports = {
   
     // Decimal codes for the instructions supported by Kramer Matrix (Protocol 2000).
@@ -80,7 +85,7 @@ module.exports = {
    * @param data     The data received from the matrix (ArrayBuffer)
    */
    
-  receivedData2000 (data) {
+  async receivedData2000 (data) {
     // The response to a command returns the first byte with the second most
     //  significant bit on. If we turn that second bit off, we can compare the
     //  first byte of the response to the first byte of the command sent to see
@@ -118,11 +123,14 @@ module.exports = {
         }
         
         case this.ERROR :
-
         // Decrement the counter now that it responded. Save the config
         //  if all the requests responded.
         if (--this.capabilityWaitingResponsesCounter === 0) {
           // Update the actions now that the new capabilities have been stored.
+		  await this.initRouting();
+//          this.initActions();
+//          this.initVariables();
+//	      this.initFeedbacks();
           this.saveConfig(this.config);
         }
         break;
@@ -135,22 +143,16 @@ module.exports = {
         //this.videoRouting[output];
         this.outputs[output].videoSource = input;
         //this.videoRouting[output] = input;
-this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
-	/*	if (this.reverseVideoRouting[formerInput] && this.reverseVideoRouting[formerInput].length > 0) {
-		  //let index = this.reverseVideoRouting[formerInput].indexOf(output);
-	*/	  let index = this.inputs[formerInput]?.videoDestinations?.indexOf(output);
+this.log('debug', 'Output ' + output + ' source : ' + input + ' / former input : ' + formerInput);
+	    let index = this.inputs[formerInput]?.videoDestinations?.indexOf(output);
 		  if (index > -1) {
             this.inputs[formerInput]?.videoDestinations?.splice(index, 1);
           }
-//		} 
 		else {
 		this.log('debug', 'former routing not found');  
 		}
 		this.inputs[input]?.videoDestinations.push(output);
-	/*	if (this.reverseVideoRouting[input]) {
-          this.reverseVideoRouting[input].push(output);
-		}
-*/
+this.log('debug', 'input ' + input + ' destinations : ' + this.inputs[input].videoDestinations);
         this.checkVariables('routing', 'video', output);
         break;
       }
@@ -164,7 +166,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
         if (index > -1) {
           this.inputs[formerInput]?.audioDestinations.splice(index, 1);
         }
-        this.inputq[input].audioDestinations.push(output);
+        this.inputs[input].audioDestinations.push(output);
         this.checkVariables('routing', 'audio', output);
         break;
       }
@@ -176,7 +178,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
    *
    * @param data     The data received from the matrix (string)
    */
-  receivedData3000(data) {
+  async receivedData3000(data) {
     // Decrement the counter now that it responded.
     --this.capabilityWaitingResponsesCounter;
 
@@ -223,9 +225,10 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
     // Save the config if all the requests responded.
     if (this.capabilityWaitingResponsesCounter === 0) {
       // Update the actions now that the new capabilities have been stored.
+      await this.initRouting();
       this.initActions();
       this.initVariables();
-      this.initRouting();
+	  this.initFeedbacks();
       this.saveConfig(this.config);
     }
   },
@@ -443,5 +446,105 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
     }
   },
 
+
+	readLine(lineNumber, path) {
+		let self = this;
+
+		let lineIndex = 0;
+
+		try {
+			if (self.config.verbose) {
+				self.log('debug', 'Opening File: ' + path);
+				self.log('debug', 'Reading Line: ' + lineNumber);
+			}
+
+			const fileStream = fs.createReadStream(path);
+
+			const rl = readline.createInterface({
+				input: fileStream,
+				crlfDelay: Infinity
+			});
+
+			rl.on('line', (line) => {
+				lineIndex++;
+				if (lineIndex == lineNumber) {
+					self.setCustomVariableValue(customVariable, line);
+					rl.close();
+				}
+			});
+		}
+		catch(error) {
+			self.log('error', 'Error Reading Line Number: ' + error);
+		}
+	},
+
+
+	getAssignations() {
+	  let flag = '';
+	  let count = 0;
+	  let path = this.config.assignations;
+	  
+	  this.log('debug', 'loading assignations from : ' + path);
+	  
+	  try {	
+			if (!fs.existsSync(path))
+			{
+				throw new Error('File does not exist');
+			}
+			
+			const fileStream = fs.createReadStream(path, {encoding: 'ascii'});
+
+			const rl = readline.createInterface({
+				input: fileStream,
+				crlfDelay: Infinity
+			});
+			
+            rl.on('line', (line) => {
+				
+				let name = line.slice(0,20);
+				if (name === '--------------------') {
+				  flag = name;
+				  return;
+				}
+				switch (flag) {
+				  case 'SOURCES             ' :
+				    input = this.inputs[++count];
+					if (input) {
+                      input.label = name;
+					}
+				    break;
+					
+				  case 'DESTINATIONS        ' :
+				    output = this.outputs[++count];
+					if (output) {
+                      output.label = name;
+					}
+				    break;
+					
+				  case '--------------------' :
+				    flag = name;
+					count = 0;
+				}
+			})
+			
+			rl.on('close', () => {
+			  this.initActions();
+              this.initVariables();
+	          this.initFeedbacks();
+			  this.checkVariables('labels');
+			});
+		
+	
+		
+	  } catch (error) {
+			this.log('error', 'error updating names : ' + error);
+			this.initActions();
+            this.initVariables();
+	        this.initFeedbacks();
+			this.checkVariables('labels');
+	  };
+	  
+	  
+	}
 
 }

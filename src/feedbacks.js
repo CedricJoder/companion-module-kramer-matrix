@@ -12,11 +12,17 @@ module.exports = {
    */
   initFeedbacks() {
 	  
-  	this.log ('debug', 'Initializing variables');
+  	this.log ('debug', 'Initializing feedbacks');
+	
+    let inputOpts = this.inputs;
+    let outputOpts = this.outputs;
+    let setups = this.setups;
+
+	
 	
     let feedbacks = {};
     
-   feedbacks['input_bg'] = {
+    feedbacks['input_bg'] = {
         type: 'boolean',
         name: 'Change background color by destination',
         description: 'If the input specified is in use by the output specified, change background color of the bank',
@@ -30,55 +36,54 @@ module.exports = {
                 label: 'Input',
                 id: 'input',
                 default: "0",
-                choices: this.inputOpts
+                choices: inputOpts
             },
             {
                 type: 'dropdown',
                 label: 'Output',
                 id: 'output',
                 default: "0",
-                choices: this.outputOpts
+                choices: outputOpts
             },
         ],
         callback: (feedback) => {
-            return (this.videoRouting[feedback.options.output] == feedback.options.input);
+            return (this.outputs[output]?.videoSource == feedback.options.input);
         },
     };
 
     feedbacks['input_bg_dyn'] = {
-                type: 'boolean',
-                name: 'Change background color by destination (dynamic)',
-                description: 'If the input specified is in use by the output specified, change background color of the bank',
-                defaultStyle: {
-                        color: combineRgb(0, 0, 0),
-                        bgcolor: combineRgb(255, 255, 0),
-                },
-                options: [
-                        {
-                                type: 'textinput',
-                                label: 'Output',
-                                id: 'output',
-                                default: '',
-                                useVariables: {local: true}
-                        },
-                        {
-                                type: 'textinput',
-                                label: 'Input',
-                                id: 'input',
-                                default: '',
-                                useVariables: {local: true}
-                        },
-                ],
-                callback: async function (feedback, context) {
-                        let outputNum = await context.parseVariablesInString(feedback.options.output);
-                        let inputNum= await context.parseVariablesInString(feedback.options.input);
+      type: 'boolean',
+      name: 'Change background color by destination (dynamic)',
+      description: 'If the input specified is in use by the output specified, change background color of the bank',
+      defaultStyle: {
+        color: combineRgb(0, 0, 0),
+        bgcolor: combineRgb(255, 255, 0),
+      },
+      options: [
+        {
+          type: 'textinput',
+          label: 'Output',
+          id: 'output',
+          default: '',
+          useVariables: {local: true}
+        },
+        {
+          type: 'textinput',
+          label: 'Input',
+          id: 'input',
+          default: '',
+          useVariables: {local: true}
+        },
+      ],
+      callback: async function (feedback, context) {
+        let outputNum = await context.parseVariablesInString(feedback.options.output);
+        let inputNum= await context.parseVariablesInString(feedback.options.input);
+        let outputId = simpleEval(outputNum);
+        let inputId = simpleEval(inputNum);
 
-                        let outputId = simpleEval(outputNum);
-                        let inputId = simpleEval(inputNum);
-
-                        return this.videoRouting[outputId] == inputId;
-                },
-        }
+        return (this.outputs[output]?.videoSource == inputId)
+      },
+    };
         
                 feedbacks['selected_destination'] = {
                 type: 'boolean',
@@ -100,7 +105,7 @@ module.exports = {
                 callback: (feedback) => {
                     return feedback.options.output == this.selectedDestination;
                 },
-        }
+        },
 
         feedbacks['selected_destination_dyn'] = {
                 type: 'boolean',
@@ -124,13 +129,13 @@ module.exports = {
                         let outputId = simpleEval(outputNum);
                         return (outputId == this.selectedDestination);
                 },
-        }
+        },
 
 
         feedbacks['selected_output_source'] = {
                 type: 'boolean',
                 name: 'Change background color by route to selected destination',
-                description: 'If the input specified is in use by the selected output, change background color of the bank',
+                description: 'If the video input specified is in use by the selected output, change background color of the bank',
                 defaultStyle: {
                         color: combineRgb(0, 0, 0),
                         bgcolor: combineRgb(255, 255, 255),
@@ -141,18 +146,18 @@ module.exports = {
                                 label: 'Input',
                                 id: 'input',
                                 default: 0,
-                                choices: inputOpts,
+                                choices: this.inputOpts,
                         },
                 ],
                 callback: (feedback) => {
-                        return this.videoRouting[this.selectedDestination] == feedback.options.input;
+                        return (this.outputs[this.selectedDestination]?.videoSource == feedback.options.input);
                 },
         }
 
-        feedbacks['selected_source_dyn'] = {
+        feedbacks['selected_output_source_dyn'] = {
                 type: 'boolean',
                 name: 'Change background color by route to selected destination (dynamic)',
-                description: 'If the input specified is in use by the selected output, change background color of the bank',
+                description: 'If the video input specified is in use by the selected output, change background color of the bank',
                 defaultStyle: {
                         color: combineRgb(0, 0, 0),
                         bgcolor: combineRgb(255, 255, 255),
@@ -169,7 +174,7 @@ module.exports = {
                 callback: async function (feedback, context) {
                         let inputNum = await context.parseVariablesInString(feedback.options.input);
                         let inputId = simpleEval(inputNum);
-                        return this.videoRouting[this.selectedDestination] == inputId
+                        return (this.outputs[this.selectedDestination]?.videoSource == inputId)
                 },
         }
 
@@ -191,7 +196,7 @@ module.exports = {
                         },
                 ],
                 callback: (feedback) => {
-                        return this.selectedVideoSource == feedback.options.input;
+                        return this.selectedSource == feedback.options.input;
                 },
         }
 
@@ -215,7 +220,7 @@ module.exports = {
                 callback: async function (feedback, context) {
                         let inputNum = await context.parseVariablesInString(feedback.options.input);
                         let inputId = simpleEval(inputNum)
-                        return this.selectedVideoSource = inputId;
+                        return this.selectedSource = inputId;
                 },
         }
 
@@ -230,13 +235,10 @@ module.exports = {
                 },
                 options: [],
                 callback: () => {
-                        return (this.selectedDestination && this.selectedVideoSource);
+                        return (this.selectedDestination && this.selectedSource);
                 },
         }
 
-
-
-	this.log('debug', 'feedbacks');
 	this.setFeedbackDefinitions(feedbacks);
 	
   }
