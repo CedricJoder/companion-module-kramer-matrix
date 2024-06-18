@@ -133,7 +133,7 @@ module.exports = {
       case this.SWITCH_VIDEO : {
         let formerInput = this.outputs[output]?.videoSource;
         //this.videoRouting[output];
-        this.outputs[output]?.videoSource = input;
+        this.outputs[output].videoSource = input;
         //this.videoRouting[output] = input;
 this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
 	/*	if (this.reverseVideoRouting[formerInput] && this.reverseVideoRouting[formerInput].length > 0) {
@@ -159,7 +159,7 @@ this.log('debug', 'Output ' + output + ' / former input : ' + formerInput);
 		input = data[2] ^ this.MSB;
       case this.SWITCH_AUDIO : {
         let formerInput = this.outputs[output]?.audioSource;
-        this.outputs[output]?.audioSource = input;
+        this.outputs[output].audioSource = input;
         let index = this.inputs[formerInput]?.audioDestinations.indexOf(output);
         if (index > -1) {
           this.inputs[formerInput]?.audioDestinations.splice(index, 1);

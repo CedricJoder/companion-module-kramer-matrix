@@ -152,17 +152,17 @@ class KramerInstance extends InstanceBase {
           // Once connected, check the capabilities of the matrix if needed.
           this.detectCapabilities(detectCapabilities);
 		}
+        this.initRouting();
 	this.initActions();
 	this.initFeedbacks();
         this.initVariables();
-        this.initRouting();
 	this.requestVideoStatus();
 	this.requestAudioStatus();
       },() => {
+        this.initRouting();
 	this.initActions();
 	this.initFeedbacks();
         this.initVariables();
-        this.initRouting();
       }).catch((_) => {
           // Error while connecting. The error message is already logged, but Node requires
           //  the rejected promise to be handled.
@@ -171,10 +171,10 @@ class KramerInstance extends InstanceBase {
     
     else {   
       // Rebuild the actions to reflect the capabilities we have.
-      this.initActions();
-	  this.initFeedbacks();
-      this.initVariables();
       this.initRouting();
+      this.initActions();
+      this.initFeedbacks();
+      this.initVariables();
     }
 
   }
