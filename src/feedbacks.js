@@ -11,12 +11,12 @@ module.exports = {
    * Creates the feedbacks for this module.
    */
   initFeedbacks() {
-	  
-  	this.log ('debug', 'Initializing feedbacks');
+	let self = this;
+  	self.log ('debug', 'Initializing feedbacks');
 	
-    let inputOpts = this.inputs;
-    let outputOpts = this.outputs;
-    let setups = this.setups;
+    let inputOpts = self.inputs;
+    let outputOpts = self.outputs;
+    let setups = self.setups;
 
 	
 	
@@ -47,7 +47,7 @@ module.exports = {
             },
         ],
         callback: (feedback) => {
-            return (this.outputs[output]?.videoSource == feedback.options.input);
+            return (self.outputs[output]?.videoSource == feedback.options.input);
         },
     };
 
@@ -81,7 +81,7 @@ module.exports = {
         let outputId = simpleEval(outputNum);
         let inputId = simpleEval(inputNum);
 
-        return (this.outputs[output]?.videoSource == inputId)
+        return (self.outputs[output]?.videoSource == inputId)
       },
     };
         
@@ -99,11 +99,11 @@ module.exports = {
                                 label: 'Output',
                                 id: 'output',
                                 default: 0,
-                                choices: this.outputOpts,
+                                choices: outputOpts,
                         },
                 ],
                 callback: (feedback) => {
-                    return feedback.options.output == this.selectedDestination;
+                    return feedback.options.output == self.selectedDestination;
                 },
         },
 
@@ -127,7 +127,7 @@ module.exports = {
                 callback: async function (feedback, context) {
                         let outputNum = await context.parseVariablesInString(feedback.options.output);
                         let outputId = simpleEval(outputNum);
-                        return (outputId == this.selectedDestination);
+                        return (outputId == self.selectedDestination);
                 },
         },
 
@@ -146,11 +146,11 @@ module.exports = {
                                 label: 'Input',
                                 id: 'input',
                                 default: 0,
-                                choices: this.inputOpts,
+                                choices: inputOpts,
                         },
                 ],
                 callback: (feedback) => {
-                        return (this.outputs[this.selectedDestination]?.videoSource == feedback.options.input);
+                        return (self.outputs[self.selectedDestination]?.videoSource == feedback.options.input);
                 },
         }
 
@@ -174,7 +174,7 @@ module.exports = {
                 callback: async function (feedback, context) {
                         let inputNum = await context.parseVariablesInString(feedback.options.input);
                         let inputId = simpleEval(inputNum);
-                        return (this.outputs[this.selectedDestination]?.videoSource == inputId)
+                        return (self.outputs[self.selectedDestination]?.videoSource == inputId)
                 },
         }
 
@@ -192,11 +192,11 @@ module.exports = {
                                 label: 'Input',
                                 id: 'input',
                                 default: 0,
-                                choices: this.inputOpts,
+                                choices: inputOpts,
                         },
                 ],
                 callback: (feedback) => {
-                        return this.selectedSource == feedback.options.input;
+                        return self.selectedSource == feedback.options.input;
                 },
         }
 
@@ -219,8 +219,8 @@ module.exports = {
                 ],
                 callback: async function (feedback, context) {
                         let inputNum = await context.parseVariablesInString(feedback.options.input);
-                        let inputId = simpleEval(inputNum)
-                        return this.selectedSource = inputId;
+                        let inputId = simpleEval(inputNum);
+                        return self.selectedSource == inputId;
                 },
         }
 
@@ -235,11 +235,11 @@ module.exports = {
                 },
                 options: [],
                 callback: () => {
-                        return (this.selectedDestination && this.selectedSource);
+                        return (self.selectedDestination && self.selectedSource);
                 },
         }
 
-	this.setFeedbackDefinitions(feedbacks);
+	self.setFeedbackDefinitions(feedbacks);
 	
   }
   

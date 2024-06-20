@@ -1,10 +1,9 @@
 
 const {
   InstanceBase,
-  Regex,
-  runEntrypoint,
   UDPHelper,
-  TCPHelper
+  TCPHelper,
+  runEntrypoint,
 } = require("@companion-module/base");
 
 const actions = require('./src/actions');
@@ -31,7 +30,6 @@ class KramerInstance extends InstanceBase {
 				
   }
 
-//  simpleEval = require('simple-eval').default;
 
   //  Define the connection protocols this module will use:
   CONNECT_TCP = "TCP";
@@ -51,7 +49,7 @@ class KramerInstance extends InstanceBase {
   // The number of capabilities we're waiting responses for before saving the config.
   capabilityWaitingResponsesCounter = 0;
   
-
+/*
   // time limit for waiting for response from device
   RESPONSE_TIMEOUT = 100;
   // Number of tries for same message
@@ -62,7 +60,7 @@ class KramerInstance extends InstanceBase {
   timeoutId = 0;
   // current attempts number
   attempts = 0;
-  
+*/  
   
 
   /**
@@ -73,7 +71,6 @@ class KramerInstance extends InstanceBase {
     this.config = config;
     this.updateStatus("ok");
 
-//    this.init_actions();
  
     // TODO: Convert this to the new upgrade infrastructure!
     //
@@ -97,12 +94,11 @@ class KramerInstance extends InstanceBase {
       configUpgraded = true;
     }
 
+
     if (configUpgraded) {
       this.saveConfig(this.config);
     }
 
-//    this.initVariables();
-//    this.initConnection();
     await this.configUpdated(this.config);
   }
 
@@ -150,17 +146,15 @@ class KramerInstance extends InstanceBase {
           // Once connected, check the capabilities of the matrix if needed.
           this.detectCapabilities(detectCapabilities);
 		}
+		// Initializes the internal matrix
         this.initRouting();
-//	    this.initActions();
-//        this.initVariables();
-//	    this.initFeedbacks();
+		// Get channels name and then build actions & variables
+		this.getAssignations();
 	    this.requestVideoStatus();
 	    this.requestAudioStatus();
       },() => {
         this.initRouting();
-//	    this.initActions();
-//        this.initVariables();
-//	    this.initFeedbacks();
+		this.getAssignations();
       }).catch((_) => {
           // Error while connecting. The error message is already logged, but Node requires
           //  the rejected promise to be handled.
@@ -168,11 +162,8 @@ class KramerInstance extends InstanceBase {
     }
     
     else {   
-      // Rebuild the actions to reflect the capabilities we have.
       this.initRouting();
-//      this.initActions();
-//      this.initVariables();
-//      this.initFeedbacks();
+	  this.getAssignations();
     }
 
   }
@@ -201,14 +192,73 @@ class KramerInstance extends InstanceBase {
     for (let i = 1; i <= setupsCount; i++) {
     this.setups.push({ id: i, label: `Preset ` + i});
     }
-	
-	this.getAssignations();
   }
 	
 
 
+  // Buffers message, then sends it if not waiting for a response.
+  trySendMessage(cmd) { 
+    if (this.outBuffer.push(cmd) == 1) {
+      this.sendMessage();
+    }
+  }
+
+  // Acknowledges response from device, and send next message.
+  ackResponse () {
+	this.attempts = 0;
+	clearTimeout(this.timeoutId);
+	setTimeout(() => {
+	  this.outBuffer?.shift();
+      this.sendMessage();
+	}, this.config.messageTimeout)
+  }
+
+
+  // Timeout function to handle long waiting state 
+  lateResponse() {
+	if (this.outBuffer?.length > 0) { 
+	  if (this.attempts < this.config.maxAttempts) { 
+        this.sendMessage();
+	  }
+	  else {
+	    this.log('error', 'error waiting for message : ' + this.outBuffer[0].toString('hex'));
+		this.ackResponse();
+	  }
+	}
+  }
+
+ 
+  // Sends next message from buffer
+  sendMessage() {
+    let cmd = this.outBuffer[0];
+	this.log('debug', 'trying to send message');
+    if (cmd) {
+      try {
+		this.attempts++;
+		let cmdstring = '';
+		for (let i=0; i<4; i++){
+		  cmdstring += (Number(cmd[i]) + ',');
+		}
+		this.log('debug', 'sending message : ' + cmdstring);
+		clearTimeout(this.timeoutId);
+		this.timeoutId = setTimeout(() => {
+			this.lateResponse();
+		  }, 
+		  this.config.responseTimeout
+		);
+		this.socket.send(cmd);
+	  }
+	  catch (error) {
+          this.log("error", `${error}`);
+      }
+    }
+  }
+
+
+
+
   /**
-   * Connect to the matrix over TCP port 5000 or UDP port 50000.
+   * Connect to the matrix over TCP or UDP.
    */
   async  initConnection() {
     this.log ('debug', 'Connection pending');
@@ -247,7 +297,6 @@ class KramerInstance extends InstanceBase {
         if (this.currentStatus !== "error") {
           // Only log the error if the module isn't already in this state.
           // This is to prevent spamming the log during reconnect failures.
-          //this.log("debug", "Network error", err);
           this.updateStatus("connection_failure", err.message);
           this.log("error", 'Network error: ' + err.message);
         }
@@ -308,30 +357,41 @@ class KramerInstance extends InstanceBase {
           }
           break;
       }
+	  this.checkFeedbacks();
     });
   }
 
 
-
-  /**
-   * Returns if the socket is connected.
-   *
-   * @returns      If the socket is connected
-   */
-  isConnected() {
-    switch (this.config.connectionProtocol) {
-      case this.CONNECT_TCP: 
-        if (this.socket) { 
-          return this.socket.isConnected;
-        }
-        return false;
-      case this.CONNECT_UDP:
-        return true;
+  
+  requestVideoStatus(output) {
+	if (output > 0) {
+      let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, output,1);
+      this.trySendMessage(cmd);
+	}
+    else {
+      for (let i = 1; i <= this.config.outputCount; i++) {
+        let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, i,1);
+        this.trySendMessage(cmd);
+      }
     }
-    return false;
   }
-
-
+  
+  
+  
+  requestAudioStatus(output) {
+    if (output > 0) {
+      let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, output,1);
+      this.trySendMessage(cmd);
+    }
+    else {
+      for (let i = 1; i <= this.config.outputCount; i++) {
+        let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, i,1);
+        this.trySendMessage(cmd);
+      }
+    }
+  }
+  
+  
 }
 
 

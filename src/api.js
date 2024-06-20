@@ -1,6 +1,8 @@
+const {
+  
+} = require("@companion-module/base");
 const fs = require('fs');
 const readline = require('readline');
-
 
 
 module.exports = {
@@ -42,12 +44,44 @@ module.exports = {
   // Internal variables reflecting the state of the matrix
   outputs : [],
   inputs : [],
-  videoRouting : [],
-  audioRouting : [],
-  reverseVideoRouting : [[]],
-  reverseAudioRouting : [[]],
   selectedSource : '',
   selectedDestination : '',
+
+
+
+
+  /**
+   * Returns if the socket is connected.
+   *
+   * @returns      If the socket is connected
+   */
+  isConnected() {
+    switch (this.config.connectionProtocol) {
+      case this.CONNECT_TCP: 
+        if (this.socket) { 
+          return this.socket.isConnected;
+        }
+        return false;
+      case this.CONNECT_UDP:
+        return true;
+    }
+    return false;
+  },
+
+
+  /**
+   * Cleanup when the module gets deleted.
+   */
+  async destroy() {
+    this.log("debug", "destroy");
+
+    if (this.socket !== undefined) {
+      this.socket.destroy();
+      delete this.socket;
+    }
+  },
+
+
 
 
 
@@ -140,10 +174,7 @@ module.exports = {
 		input = data[2] ^ this.MSB;
       case this.SWITCH_VIDEO : {
         let formerInput = this.outputs[output]?.videoSource;
-        //this.videoRouting[output];
         this.outputs[output].videoSource = input;
-        //this.videoRouting[output] = input;
-this.log('debug', 'Output ' + output + ' source : ' + input + ' / former input : ' + formerInput);
 	    let index = this.inputs[formerInput]?.videoDestinations?.indexOf(output);
 		  if (index > -1) {
             this.inputs[formerInput]?.videoDestinations?.splice(index, 1);
@@ -152,10 +183,11 @@ this.log('debug', 'Output ' + output + ' source : ' + input + ' / former input :
 		this.log('debug', 'former routing not found');  
 		}
 		this.inputs[input]?.videoDestinations.push(output);
-this.log('debug', 'input ' + input + ' destinations : ' + this.inputs[input].videoDestinations);
+		// Update variables
         this.checkVariables('routing', 'video', output);
         break;
       }
+	  
       case this.REQUEST_AUDIO_STATUS : 
 	    output = this.outBuffer[0][2] ^ this.MSB;
 		input = data[2] ^ this.MSB;
@@ -389,96 +421,8 @@ this.log('debug', 'input ' + input + ' destinations : ' + this.inputs[input].vid
   
   
 
-  // Buffers message, then sends it if not waiting for a response.
-  trySendMessage(cmd) {
-    if (this.outBuffer.push(cmd) == 1) {
-      this.sendMessage();
-    }
-  },
-
-  // Acknowledges response from device, and send next message.
-  ackResponse () {
-	this.attempts = 0;
-	clearTimeout(this.timeoutId);
-	setTimeout(() => {
-	  this.outBuffer?.shift();
-      this.sendMessage();
-	}, this.NEXT_MESSAGE_TIMEOUT)
-  },
-
-
-  // Timeout function to handle long waiting state 
-  lateResponse() {
-	if (this.outBuffer?.length > 0) {
-	  if (this.attempts < this.MAX_ATTEMPTS) {
-        this.sendMessage();
-	  }
-	  else {
-	    this.log('error', 'error waiting for message : ' + this.outBuffer[0]);
-		this.ackResponse();
-	  }
-	}
-  },
-
- 
-  // Sends next message from buffer
-  sendMessage() {
-    let cmd = this.outBuffer[0];
-    if (cmd) {
-      try {
-		this.attempts++;
-		let cmdstring = '';
-		for (let i=0; i<4; i++){
-		  cmdstring += (Number(cmd[i]) + ',');
-		}
-		this.log('debug', 'sending message : ' + cmdstring);
-		clearTimeout(this.timeoutId);
-		this.timeoutId = setTimeout(() => {
-			this.lateResponse();
-		  }, 
-		  this.RESPONSE_TIMEOUT
-		);
-		this.socket.send(cmd);
-	  }
-	  catch (error) {
-          this.log("error", `${error}`);
-      }
-    }
-  },
-
-
-	readLine(lineNumber, path) {
-		let self = this;
-
-		let lineIndex = 0;
-
-		try {
-			if (self.config.verbose) {
-				self.log('debug', 'Opening File: ' + path);
-				self.log('debug', 'Reading Line: ' + lineNumber);
-			}
-
-			const fileStream = fs.createReadStream(path);
-
-			const rl = readline.createInterface({
-				input: fileStream,
-				crlfDelay: Infinity
-			});
-
-			rl.on('line', (line) => {
-				lineIndex++;
-				if (lineIndex == lineNumber) {
-					self.setCustomVariableValue(customVariable, line);
-					rl.close();
-				}
-			});
-		}
-		catch(error) {
-			self.log('error', 'Error Reading Line Number: ' + error);
-		}
-	},
-
-
+    // Load channels name from agn file (Kramer Taylormade)
+	// based on module generic readfile
 	getAssignations() {
 	  let flag = '';
 	  let count = 0;
@@ -492,7 +436,7 @@ this.log('debug', 'input ' + input + ' destinations : ' + this.inputs[input].vid
 				throw new Error('File does not exist');
 			}
 			
-			const fileStream = fs.createReadStream(path, {encoding: 'ascii'});
+			const fileStream = fs.createReadStream(path, {encoding: 'latin1'});
 
 			const rl = readline.createInterface({
 				input: fileStream,
@@ -527,6 +471,7 @@ this.log('debug', 'input ' + input + ' destinations : ' + this.inputs[input].vid
 				}
 			})
 			
+			// on end or closing of file builds actions and variables
 			rl.on('close', () => {
 			  this.initActions();
               this.initVariables();
@@ -537,11 +482,12 @@ this.log('debug', 'input ' + input + ' destinations : ' + this.inputs[input].vid
 	
 		
 	  } catch (error) {
+		  // on error, goes on building actions and variables with default names
 			this.log('error', 'error updating names : ' + error);
 			this.initActions();
             this.initVariables();
-	        this.initFeedbacks();
 			this.checkVariables('labels');
+	        this.initFeedbacks();
 	  };
 	  
 	  

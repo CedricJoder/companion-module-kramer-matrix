@@ -6,33 +6,14 @@ module.exports = {
    * Creates the actions for this module.
    */
   initActions() {
-	this.log('debug', 'Initializing actions');
-/*    let inputOpts = [{ id: "0", label: "Off" }];
-    let outputOpts = [{ id: "0", label: "All" }];
-    let setups = [];
+	let self = this;
+	self.log('debug', 'Initializing actions');
 
-    // Set some sane minimum/maximum values on the capabilities
-    let inputCount = Math.min(64, this.config.inputCount);
-    let outputCount = Math.min(64, this.config.outputCount);
-    let setupsCount = Math.min(64,this.config.setupsCount);
+    let inputOpts = self.inputs;
+    let outputOpts = self.outputs;
+    let setups = self.setups;
 
-    // Build the inputs, outputs, and setups
-    for (let i = 1; i <= inputCount; i++) {
-      inputOpts.push({ id: i, label: `Input ${i}` });
-    }
-    for (let i = 1; i <= outputCount; i++) {
-      outputOpts.push({ id: i, label: `Output ${i}` });
-    }
-    for (let i = 1; i <= setupsCount; i++) {
-      setups.push({ id: i, label: `Preset ${i}` });
-    }
-*/
-
-    let inputOpts = this.inputs;
-    let outputOpts = this.outputs;
-    let setups = this.setups;
-
-    this.setActionDefinitions({
+    self.setActionDefinitions({
 		
 		
       selectOutput: {
@@ -47,8 +28,9 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-		  this.selectedDestination = event.options.output;
-		  this.checkVariables ('selection');
+		  self.selectedDestination = event.options.output;
+		  self.checkVariables ('selection');
+		  self.checkFeedbacks('selected_destination', 'selected_destination_dyn', 'selected_output_source', 'selected_output_source_dyn', 'take');
 		}
 	  },
 		
@@ -63,10 +45,11 @@ module.exports = {
             default: "0",
           },
         ],
-        callback: async (event, context) => {console.log('output selection');
+        callback: async (event, context) => {
 		  const output = simpleEval(await context.parseVariablesInString(event.options.output));
-		  this.selectedDestination = output;
-		  this.checkVariables ('selection');
+		  self.selectedDestination = output;
+		  self.checkVariables ('selection');
+		  self.checkFeedbacks('selected_destination', 'selected_destination_dyn', 'selected_output_source', 'selected_output_source_dyn', 'take');
 		}
 	  },
 				
@@ -82,8 +65,9 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-		  this.selectedSource = event.options.input;
-		  this.checkVariables ('selection');
+		  self.selectedSource = event.options.input;
+		  self.checkVariables ('selection');
+		  self.checkFeedbacks('selected_source', 'selected_source_dyn', 'take');
 		}
 	  },
 		
@@ -100,8 +84,10 @@ module.exports = {
         ],
         callback: async (event, context) => {
 		  const input = simpleEval(await context.parseVariablesInString(event.options.input));
-		  this.selectedSource = input;
-		  this.checkVariables ('selection');
+		  self.selectedSource = input;
+		  self.checkVariables ('selection');
+  		  self.checkFeedbacks('selected_source', 'selected_source_dyn', 'take');
+
 		}
 	  },
 			
@@ -119,8 +105,7 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-		  this.requestAudioStatus(event.options.output);
-          //this.log("debug", `Kramer command: ${cmd}`);
+		  self.requestAudioStatus(event.options.output);
         },
       },
 	
@@ -137,7 +122,7 @@ module.exports = {
         ],
         callback: async (event, context) => {
           const output = simpleEval(await context.parseVariablesInString(event.options.output));
-          this.requestAudioStatus(output);
+          self.requestAudioStatus(output);
         },
       },
 	  
@@ -153,7 +138,7 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-		  this.requestVideoStatus(event.options.output);
+		  self.requestVideoStatus(event.options.output);
         },
       },
 	  	
@@ -171,7 +156,7 @@ module.exports = {
         callback: async (event, context) => {
           const output = simpleEval(await context.parseVariablesInString(event.options.output)
           );
-          this.requestVideoStatus(output);
+          self.requestVideoStatus(output);
         },
       },
 	  
@@ -195,19 +180,14 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-          let cmd = this.makeCommand(
-            this.SWITCH_AUDIO,
+          let cmd = self.makeCommand(
+            self.SWITCH_AUDIO,
             event.options.input,
             event.options.output
           );
-         // this.log("debug", `Kramer command: ${cmd}`);
-		 this.trySendMessage(cmd);
-/*          try {
-            this.socket.send(cmd);
-          } catch (error) {
-            this.log("error", `${error}`);
-          }
-*/        },
+		 
+		 self.trySendMessage(cmd);
+		},
       },
 	  
       switchVideo: {
@@ -229,12 +209,12 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-          let cmd = this.makeCommand(
-            this.SWITCH_VIDEO,
+          let cmd = self.makeCommand(
+            self.SWITCH_VIDEO,
             event.options.input,
             event.options.output
           );
-		  this.trySendMessage(cmd);
+		  self.trySendMessage(cmd);
         },
       },
 	  
@@ -259,8 +239,8 @@ module.exports = {
         callback: async (event, context) => {
 		  const input = simpleEval(await context.parseVariablesInString(event.options.input));
 		  const output = simpleEval(await context.parseVariablesInString(event.options.output));
-          let cmd = this.makeCommand(this.SWITCH_VIDEO, input, output);
-		  this.trySendMessage(cmd);
+          let cmd = self.makeCommand(self.SWITCH_VIDEO, input, output);
+		  self.trySendMessage(cmd);
         },
       },
 
@@ -284,14 +264,14 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-		  let outputsList = this.inputs[inputA]?.map((x) => x);
+		  let outputsList = self.inputs[inputA]?.map((x) => x);
 		  outputList.forEach((output) => {
-            let cmd = this.makeCommand(
-              this.SWITCH_VIDEO,
+            let cmd = self.makeCommand(
+              self.SWITCH_VIDEO,
               inputB,
               output
             );
-            this.trySendMessage(cmd);
+            self.trySendMessage(cmd);
 		  });
         },
       },
@@ -317,9 +297,9 @@ module.exports = {
         callback: async (event, context) => {
 		  const inputA = simpleEval(await context.parseVariablesInString(event.options.inputA));
 		  const inputB = simpleEval(await context.parseVariablesInString(event.options.inputB));
-		  this.inputs[inputA]?.forEach((output) => {
-            let cmd = this.makeCommand(this.SWITCH_VIDEO, inputB, output);
-            this.trySendMessage(cmd);
+		  self.inputs[inputA]?.forEach((output) => {
+            let cmd = self.makeCommand(self.SWITCH_VIDEO, inputB, output);
+            self.trySendMessage(cmd);
 		  })
         },
       },
@@ -350,8 +330,8 @@ module.exports = {
 		  const input = simpleEval(await context.parseVariablesInString(event.options.input));
 		  const output = simpleEval(await context.parseVariablesInString(event.options.output));
 
-          let cmd = this.makeCommand(this.SWITCH_AUDIO, input, output);
-		  this.trySendMessage(cmd);
+          let cmd = self.makeCommand(self.SWITCH_AUDIO, input, output);
+		  self.trySendMessage(cmd);
         },
       },
 
@@ -367,8 +347,8 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-          let cmd = this.makeCommand(this.RECALL_SETUP, event.options.setup, 0);
-		  this.trySendMessage(cmd);
+          let cmd = self.makeCommand(self.RECALL_SETUP, event.options.setup, 0);
+		  self.trySendMessage(cmd);
         },
       },
 
@@ -384,18 +364,13 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-          let cmd = this.makeCommand(
-            this.STORE_SETUP,
+          let cmd = self.makeCommand(
+            self.STORE_SETUP,
             event.options.setup,
             0 /* STORE */
           );
-		  this.trySendMessage(cmd);
-/*          try {
-            this.socket.send(cmd);
-          } catch (error) {
-            this.log("error", `${error}`);
-          }
-*/        },
+		  self.trySendMessage(cmd);
+        },
       },
 
       delete_setup: {
@@ -412,18 +387,13 @@ module.exports = {
 
         callback: async (event) => {
           // Not a bug. The command to delete a setup is to store it.
-          let cmd = this.makeCommand(
-            this.STORE_SETUP,
+          let cmd = self.makeCommand(
+            self.STORE_SETUP,
             event.options.setup,
             1 /* DELETE */
           );
-		  this.trySendMessage(cmd);
-/*          try {
-            this.socket.send(cmd);
-          } catch (error) {
-            this.log("error", `${error}`);
-          }
-*/        },
+		  self.trySendMessage(cmd);
+        },
       },
 
       front_panel: {
@@ -441,8 +411,8 @@ module.exports = {
           },
         ],
         callback: async (event) => {
-          let cmd = this.makeCommand(this.FRONT_PANEL, event.options.status, 0);
-		  this.trySendMessage(cmd);
+          let cmd = self.makeCommand(self.FRONT_PANEL, event.options.status, 0);
+		  self.trySendMessage(cmd);
         },
       },
 	  
@@ -456,42 +426,43 @@ module.exports = {
 		    default: "0",
 		    choices: [
 		      {id: "0", label: "Audio & Video" },
-			  {id: this.SWITCH_VIDEO, label: "Video"},
-			  {id: this.SWITCH_AUDIO, label: "Audio" }
+			  {id: self.SWITCH_VIDEO, label: "Video"},
+			  {id: self.SWITCH_AUDIO, label: "Audio" }
             ]
 		  }
 	    ],
 	    callback: async (event) => {
-		  if (this.selectedDestination == "") {
+		  if (self.selectedDestination == "") {
 		    return;
 		  }
 		  switch (event.options.type) {
             case "0" : {
-			  if (this.selectedSource > 0) {
-		        let cmd = this.makeCommand(this.SWITCH_AUDIO, this.selectedSource, this.selectedDestination);
-		        this.selectedSource = "";
-		        this.trySendMessage(cmd);
+			  if (self.selectedSource > 0) {
+		        let cmd = self.makeCommand(self.SWITCH_AUDIO, self.selectedSource, self.selectedDestination);
+		        self.selectedSource = "";
+		        self.trySendMessage(cmd);
 			  }
 			}
-			case this.SWITCH_VIDEO : {
-			  if (this.selectedSource > 0) {
-			    let cmd = this.makeCommand(this.SWITCH_VIDEO, this.selectedSource, this.selectedDestination);
-		        this.selectedSource = "";
-		        this.selectedDestination = "";
-		        this.trySendMessage(cmd);
+			case self.SWITCH_VIDEO : {
+			  if (self.selectedSource > 0) {
+			    let cmd = self.makeCommand(self.SWITCH_VIDEO, self.selectedSource, self.selectedDestination);
+		        self.selectedSource = "";
+		        self.selectedDestination = "";
+		        self.trySendMessage(cmd);
 			    }
 			  break;
 			}
-			case this.SWITCH_AUDIO : {
-			  if (this.selectedSource > 0) {
-		        let cmd = this.makeCommand(this.SWITCH_AUDIO, this.selectedSource, this.selectedDestination);
-		        this.selectedSource = "";
-		        this.selectedDestination = "";
-                this.trySendMessage(cmd);
+			case self.SWITCH_AUDIO : {
+			  if (self.selectedSource > 0) {
+		        let cmd = self.makeCommand(self.SWITCH_AUDIO, self.selectedSource, self.selectedDestination);
+		        self.selectedSource = "";
+		        self.selectedDestination = "";
+                self.trySendMessage(cmd);
 			  }
 			}
 		  }
-		  this.checkVariables("selection");
+		  self.checkVariables("selection");
+		  self.checkFeedbacks('selected_destination', 'selected_destination_dyn', 'selected_source', 'selected_source_dyn', 'selected_output_source', 'selected_output_source_dyn', 'take');
 		}
     },
 	
@@ -499,10 +470,11 @@ module.exports = {
         name : "Clear",
 		options: [],
 	    callback: async (event) => {
-		  this.selectedSource = "";
-		  this.selectedSource = "";
-		  this.selectedDestination = "";
-		  this.checkVariables("selection");
+		  self.selectedSource = "";
+		  self.selectedSource = "";
+		  self.selectedDestination = "";
+		  self.checkVariables("selection");
+		  self.checkFeedbacks('selected_destination', 'selected_destination_dyn', 'selected_source', 'selected_source_dyn', 'selected_output_source', 'selected_output_source_dyn', 'take');
 		}
     }
 	

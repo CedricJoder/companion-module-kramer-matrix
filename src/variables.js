@@ -32,6 +32,10 @@ module.exports = {
   },
 
 
+  /*
+   * Sets variables values
+   */
+
   checkVariables(category, type, destination) {
     let variableValues = {};
     switch (category) {

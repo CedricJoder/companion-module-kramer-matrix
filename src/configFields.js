@@ -141,10 +141,33 @@ module.exports = {
       },
 	  
 	  {
-		  type: "textinput",
-		  id: "assignations",
-	  label: "Assignation file"
+		type: "textinput",
+		id: "assignations",
+	    label: "Assignation file",
+	    width: 12
 	  },		  
+	  
+	  {
+		  type: "number",
+		  id: "responseTimeout",
+		  label: "Timeout after device response",
+		  default: 100
+	  },
+	  
+	  {
+		  type: "number",
+		  id: "messageTimeout",
+		  label: "Timeout between 2 messages",
+		  default: 500
+	  },
+	  
+	  {
+		  type: "number",
+		  id: "maxAttempts",
+		  label: "Max attempts before error",
+		  default: 10
+	  },
+	  
 	  
       {
         type: "static-text",
@@ -182,16 +205,5 @@ module.exports = {
     ];
   },
 
-  /**
-   * Cleanup when the module gets deleted.
-   */
-  async destroy() {
-    this.log("debug", "destroy");
-
-    if (this.socket !== undefined) {
-      this.socket.destroy();
-      delete this.socket;
-    }
-  }
   
 }
