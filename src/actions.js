@@ -245,7 +245,7 @@ module.exports = {
       },
 
 	  
-      switchAllInputs: {
+      switchInputs: {
         name: "Replace input A by input B",
         options: [
           {
@@ -276,7 +276,7 @@ module.exports = {
         },
       },
 	  
-      switchVideoDynamic: {
+      switchInputsDynamic: {
         name: "Replace input A by input B (Dynamic)",
         options: [
           {

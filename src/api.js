@@ -1,5 +1,6 @@
 const {
-  
+  UDPHelper,
+  TCPHelper  
 } = require("@companion-module/base");
 const fs = require('fs');
 const readline = require('readline');
@@ -491,6 +492,235 @@ module.exports = {
 	  };
 	  
 	  
+	},
+
+  
+  /** 
+   *Initializes the internal routing matrix
+   */
+  initRouting() {
+    let inputCount = Math.min(64, this.config.inputCount);
+    let outputCount = Math.min(64, this.config.outputCount);
+    let setupsCount = Math.min(64, this.config.setupsCount);
+
+	this.log('debug', 'Initializing internal routing matrix');
+	
+	this.inputs = [{ id: "0", label: "Off", videoDestinations : [], audioDestinations : [] }]; 
+	this.outputs = [{ id: "0", label: 'All', videoSource : '', audioSource : "" }];
+    this.setups = [];
+
+	for (let i = 1; i<= inputCount; i++) {
+      this.inputs.push({id: i, label : 'Input '+ i, videoDestinations : [], audioDestinations : []});
+    }
+    for (let i = 1; i<= outputCount; i++) {
+      this.outputs.push({id: i, label : 'Output '+ i, videoSource : '', audioSource : ''});
+    }
+    for (let i = 1; i <= setupsCount; i++) {
+    this.setups.push({ id: i, label: `Preset ` + i});
+    }
+  },
+	
+
+
+  // Buffers message, then sends it if not waiting for a response.
+  trySendMessage(cmd) { 
+    if (this.outBuffer.push(cmd) == 1) {
+      this.sendMessage();
+    }
+  },
+
+  // Acknowledges response from device, and send next messag after timeout.
+  ackResponse () {
+	this.attempts = 0;
+	clearTimeout(this.timeoutId);
+	setTimeout(() => {
+	  this.outBuffer?.shift();
+      this.sendMessage();
+	}, this.config.messageTimeout)
+  },
+
+
+  // Timeout function to handle long waiting state 
+  lateResponse() {
+	if (this.outBuffer?.length > 0) { 
+	  if (this.attempts < this.config.maxAttempts) { 
+        this.sendMessage();
+	  }
+	  else {
+            let mes = new Uint8Array(this.outBuffer[0]);
+            let hexMes = mes.map((x) => {x.toString(16)});
+//toString('hex');
+           
+	    this.log('error', 'error waiting for message : ' + hexMes);
+		this.ackResponse();
+	  }
 	}
+  },
+
+ 
+  // Sends next message from buffer
+  sendMessage() {
+    let cmd = this.outBuffer[0];
+	this.log('debug', 'trying to send message');
+    if (cmd) {
+      try {
+		this.attempts++;
+		let cmdstring = '';
+		for (let i=0; i<4; i++){
+		  cmdstring += (Number(cmd[i]) + ',');
+		}
+                let msg = Array.from(cmd);
+		this.log('debug', 'sending message : ' + msg);
+		clearTimeout(this.timeoutId);
+		this.timeoutId = setTimeout(() => {
+			this.lateResponse();
+		  }, 
+		  this.config.responseTimeout
+		);
+		this.socket.send(cmd);
+	  }
+	  catch (error) {
+          this.log("error", `${error}`);
+      }
+    }
+  },
+
+
+
+
+  /**
+   * Connect to the matrix over TCP or UDP.
+   */
+  async  initConnection() {
+    this.log ('debug', 'Connection pending');
+    this.PromiseConnected = null;
+	this.outBuffer = [];
+    	   
+    if (this.socket !== undefined) {
+		this.log ('debug', 'socket exists');
+      await this.socket.destroy();
+      delete this.socket;
+    }
+
+    if (!this.config.host) {
+      return;
+    }
+	
+    this.updateStatus("connecting");
+	
+    this.PromiseConnected = new Promise((resolve, reject) => {
+      switch (this.config.connectionProtocol) { 
+        case this.CONNECT_TCP:
+          this.socket = new TCPHelper(this.config.host, this.config.port, {
+            reconnect_interval: 5000,
+          });
+          this.socket.writableLength = 4;
+          break;
+
+        case this.CONNECT_UDP:
+          this.socket = new UDPHelper(this.config.host, this.config.port);
+          this.updateStatus("ok");
+          this.log("debug", "Connected (UDP)");
+          break;
+      }
+
+      this.socket.on("error", (err) => {
+        if (this.currentStatus !== "error") {
+          // Only log the error if the module isn't already in this state.
+          // This is to prevent spamming the log during reconnect failures.
+          this.updateStatus("connection_failure", err.message);
+          this.log("error", 'Network error: ' + err.message);
+        }
+        reject(err);
+      });
+
+      this.socket.on("connect", () => {
+        // This event only fires for TCP connections.
+        this.updateStatus("ok");
+        this.log("debug", "Connected (TCP)");
+        resolve();
+      });
+
+      if (this.config.connectionProtocol === this.CONNECT_UDP) {
+        // Auto-resolve the promise if this is a UDP connection.
+        resolve();
+      }
+
+    });
+
+    this.socket.on("status_change", (status, message) => {
+      this.updateStatus(status, message);
+    });
+
+    this.socket.on("data", (data) => {
+      // Note: 'data' is an ArrayBuffer
+      if (typeof data !== "object" || data.length < 4) {
+        // Unknown or invalid response
+        return;
+      }
+
+      switch (this.config.protocol) {
+        case this.PROTOCOL_2000:
+		  for (let i = 0; i < data.length; i += 4) {
+			let chunk = data.slice(i, i+4);
+			if (chunk[0] < this.MSB) {
+			  this.ackResponse();
+			  let cmdstring = '';
+		      for (let i=0; i<4; i++){
+		        cmdstring += (Number(chunk[i]) + ',');
+		        }
+              this.log('debug', 'Received Protocol 2000 data : ' + cmdstring);
+              this.receivedData2000(chunk);
+	        }
+		  }
+          break;
+
+        case this.PROTOCOL_3000:
+          // data may come in as a multiline response to the request. Handle
+          //  each line separately.
+		  this.log('debug', 'Received Protocol 3000 data : ' + data);
+          data = data.toString().split("\r\n");
+
+          for (var i = 0; i < data.length; i++) {
+            if (data[i].length !== 0) {
+              this.receivedData3000(data[i]);
+            }
+          }
+          break;
+      }
+	  this.checkFeedbacks();
+    });
+  },
+
+
+  
+  requestVideoStatus(output) {
+	if (output > 0) {
+      let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, output,1);
+      this.trySendMessage(cmd);
+	}
+    else {
+      for (let i = 1; i <= this.config.outputCount; i++) {
+        let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, i,1);
+        this.trySendMessage(cmd);
+      }
+    }
+  },
+  
+  
+  
+  requestAudioStatus(output) {
+    if (output > 0) {
+      let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, output,1);
+      this.trySendMessage(cmd);
+    }
+    else {
+      for (let i = 1; i <= this.config.outputCount; i++) {
+        let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, i,1);
+        this.trySendMessage(cmd);
+      }
+    }
+  }
+  
 
 }
