@@ -11,7 +11,8 @@ module.exports = {
 
     variables.push({ variableId : 'selectedSource', name : 'Selected source'});  
     variables.push({ variableId : 'selectedDestination', name : 'Selected destination'});  
-
+    variables.push({ variableId : 'selectedSourceLabel', name : 'Selected source label'});  
+    variables.push({ variableId : 'selectedDestinationLabel', name : 'Selected destination label'});  
 
     // Set some sane minimum/maximum values on the capabilities
     let inputCount = Math.min(64, this.config.inputCount);
@@ -26,7 +27,8 @@ module.exports = {
 
     for (let i = 1; i <= inputCount; i++) { 
       variables.push({ variableId : 'Input_' + i + '_label', name : 'Input #' + i + ' label'});
-      variables.push({ variableId : 'Input_' + i + '_routes', name : 'Input #' + i + ' routes'});
+      variables.push({ variableId : 'Input_' + i + '_video_destinations', name : 'Input #' + i + ' video destinations'});
+      variables.push({ variableId : 'Input_' + i + '_audio_destinations', name : 'Input #' + i + ' audio destinations'});
     }
     this.setVariableDefinitions(variables);
   },
@@ -36,29 +38,40 @@ module.exports = {
    * Sets variables values
    */
 
-  checkVariables(category, type, destination) {
+  checkVariables(category, type, destination) { 
     let variableValues = {};
     switch (category) {
       case 'routing' :
         if (type == 'video' || type == 'audio') {
           if (destination > 0) {
-            variableValues['Output_' + destination + '_' + type + '_source'] = this.outputs[destination][type+'Source'];
-          }
+            variableValues['Output_' + destination + '_' + type + '_source'] = this.outputs[destination][type+'Source']; 
+			if (this.outputs[destination]) {
+				variableValues['Input_' + this.outputs[destination][type+'Source'] + '_' + type + '_destinations'] = this.inputs[this.outputs[destination][type + 'Source']][type+'Destinations'].toString();
+            }
+		  }
           else {
-            let outputCount = this[type + 'Routing'].length();
+            let outputCount = this.outputs.length;
             for (i = 1; i < outputCount; i++) {
-              variableValues['Output_' + i + '_' + type + '_source'] = this.outputs[i][type+'Routing'];
+              variableValues['Output_' + i + '_' + type + '_source'] = this.outputs[i][type+'Source'];
+			}
+			let inputCount = this.inputs.length;
+			for (i = 1; i < inputCount; i++) {
+				if ((this.outputs[i] !== undefined) && (this.inputs[this.outputs[i]] !== undefined)) {
+				  variableValues['Input_' + i + '_' + type + '_destinations'] = this.inputs[i][type+'Destinations'].toString();
+				}
             }
           }
         }
         else {
-          checkVariables('routing', 'video', destination);
-          checkVariables('routing', 'audio', destination);
+          this.checkVariables('routing', 'video', destination);
+          this.checkVariables('routing', 'audio', destination);
         }
         break;
       case 'selection' :
         variableValues['selectedSource'] = this.selectedSource;
         variableValues['selectedDestination'] = this.selectedDestination;
+		variableValues['selectedSourceLabel'] = this.inputs[this.selectedSource]?.label;
+		variableValues['selectedDestinationLabel'] = this.outputs[this.selectedDestination]?.label;
 
         break;
 		
@@ -73,9 +86,9 @@ module.exports = {
 		break;
 
       default : 
-        checkVariables('routing');
-        checkVariables('selection');
-		checkVariables('labels');
+        this.checkVariables('routing');
+        this.checkVariables('selection');
+		this.checkVariables('labels');
     }
 
     if (Object.keys(variableValues).length > 0) {

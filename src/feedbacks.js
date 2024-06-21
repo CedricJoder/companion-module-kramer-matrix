@@ -235,7 +235,7 @@ module.exports = {
                 },
                 options: [],
                 callback: () => {
-                        return (self.selectedDestination && self.selectedSource);
+                        return ((self.selectedDestination > 0) && (self.selectedSource > 0));
                 },
         }
 

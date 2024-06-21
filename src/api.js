@@ -33,13 +33,10 @@ module.exports = {
   DISCONNECT_0 : "0",
   DISCONNECT_INP1 : "+1",
   
-  
-  
 
   // Protocol 2000: The most significant bit for bytes 2-4 must be 1. Adding 128 to
   //  each of those bytes accomplishes this.
   MSB : 128,
-  
   
   
   // Internal variables reflecting the state of the matrix
@@ -69,7 +66,6 @@ module.exports = {
     return false;
   },
 
-
   /**
    * Cleanup when the module gets deleted.
    */
@@ -81,9 +77,6 @@ module.exports = {
       delete this.socket;
     }
   },
-
-
-
 
 
   /**
@@ -110,9 +103,6 @@ module.exports = {
 	  this.trySendMessage(cmd);
     }
   },
-
-
-
 
     /**
    * Handles a response from a Protocol 2000 matrix.
@@ -184,6 +174,7 @@ module.exports = {
 		this.log('debug', 'former routing not found');  
 		}
 		this.inputs[input]?.videoDestinations.push(output);
+		console.log('input : ' + input + ' / destinations : ' + this.inputs[input].videoDestinations);
 		// Update variables
         this.checkVariables('routing', 'video', output);
         break;
@@ -265,7 +256,6 @@ module.exports = {
       this.saveConfig(this.config);
     }
   },
-
 
   /**
      * Formats the command as per the Kramer 2000 protocol.
@@ -371,8 +361,6 @@ module.exports = {
       }
     },
 
-
-
     /**
      * Difference matrices use different command to issue a disconnect.
      * Return the command appropriate for the user's matrix.
@@ -389,8 +377,7 @@ module.exports = {
           return "0";
       }
     },
-   
-   
+     
   
   requestVideoStatus(output) {
 	if (output > 0) {
@@ -404,8 +391,7 @@ module.exports = {
       }
     }
   },
-  
-  
+   
   
   requestAudioStatus(output) {
     if (output > 0) {
@@ -420,8 +406,6 @@ module.exports = {
     }
   },
   
-  
-
     // Load channels name from agn file (Kramer Taylormade)
 	// based on module generic readfile
 	getAssignations() {
@@ -521,7 +505,6 @@ module.exports = {
   },
 	
 
-
   // Buffers message, then sends it if not waiting for a response.
   trySendMessage(cmd) { 
     if (this.outBuffer.push(cmd) == 1) {
@@ -547,9 +530,12 @@ module.exports = {
         this.sendMessage();
 	  }
 	  else {
-            let mes = new Uint8Array(this.outBuffer[0]);
-            let hexMes = mes.map((x) => {x.toString(16)});
-//toString('hex');
+            let mes = this.outBuffer[0];
+            let hexMes = "";
+			for (let i = 0; i<3; i++) {
+				hexMes += (mes[i].toString(16) + ',');
+			}
+			hexMes += mes[3].toString(16);
            
 	    this.log('error', 'error waiting for message : ' + hexMes);
 		this.ackResponse();
@@ -561,16 +547,15 @@ module.exports = {
   // Sends next message from buffer
   sendMessage() {
     let cmd = this.outBuffer[0];
-	this.log('debug', 'trying to send message');
     if (cmd) {
       try {
 		this.attempts++;
-		let cmdstring = '';
-		for (let i=0; i<4; i++){
-		  cmdstring += (Number(cmd[i]) + ',');
+        let hexMes = "";
+        for (let i = 0; i<3; i++) {
+		    hexMes += (cmd[i].toString(16) + ',');
 		}
-                let msg = Array.from(cmd);
-		this.log('debug', 'sending message : ' + msg);
+			hexMes += cmd[3].toString(16);
+		this.log('debug', 'sending message : ' + hexMes);
 		clearTimeout(this.timeoutId);
 		this.timeoutId = setTimeout(() => {
 			this.lateResponse();
@@ -584,9 +569,6 @@ module.exports = {
       }
     }
   },
-
-
-
 
   /**
    * Connect to the matrix over TCP or UDP.
@@ -692,35 +674,5 @@ module.exports = {
     });
   },
 
-
-  
-  requestVideoStatus(output) {
-	if (output > 0) {
-      let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, output,1);
-      this.trySendMessage(cmd);
-	}
-    else {
-      for (let i = 1; i <= this.config.outputCount; i++) {
-        let cmd = this.makeCommand(this.REQUEST_VIDEO_STATUS, 0, i,1);
-        this.trySendMessage(cmd);
-      }
-    }
-  },
-  
-  
-  
-  requestAudioStatus(output) {
-    if (output > 0) {
-      let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, output,1);
-      this.trySendMessage(cmd);
-    }
-    else {
-      for (let i = 1; i <= this.config.outputCount; i++) {
-        let cmd = this.makeCommand(this.REQUEST_AUDIO_STATUS, 0, i,1);
-        this.trySendMessage(cmd);
-      }
-    }
-  }
-  
 
 }
