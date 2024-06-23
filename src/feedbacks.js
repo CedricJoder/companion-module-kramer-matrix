@@ -47,7 +47,7 @@ module.exports = {
             },
         ],
         callback: (feedback) => {
-            return (self.outputs[output]?.videoSource == feedback.options.input);
+            return (self.outputs[feedback.options.output]?.videoSource == feedback.options.input);
         },
     };
 
